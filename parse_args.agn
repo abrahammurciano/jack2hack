@@ -1,0 +1,23 @@
+#!agena
+
+# function that reads args for an input file and optionally an output file
+# if no input file is provided, an error is thrown
+# if no output file is provided, one is assumed (same location and base name as input file)
+# ext is a string with the output file extension to use if no output file is provided (without preceding period)
+parse_args := proc(ext :: string) is
+	local path_in := args[1]
+	local path_out := args[2]
+	if path_in = null then
+		error('Must provide a file name, for example ' & args[0] & ' /path/to/input.file')
+	fi
+	if path_out = null then
+		local index, _ := strings.find(path_in, "[^/]*$")
+		local dir := if index > 1 then path_in[1 to index - 1] else '' fi
+		local file := path_in[index to -1]
+		index := strings.find(file, "%.[^.]*$", 2)
+		print(index)
+		local file_base := if index then file[1 to index - 1] else file fi
+		path_out := dir & file_base & '.' & ext
+	fi
+	return io.open(path_in), io.open(path_out, 'w')
+end
