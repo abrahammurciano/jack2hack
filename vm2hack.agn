@@ -1,0 +1,13 @@
+parse_line := proc (line) is
+	line := trim(line)
+	if "push constant" in line = 1 then	#check if a constant number is inputted
+		local num := tonumber((line split 'push constant ')[2])	#takes number from sequence at index 2 and convert string to number
+		print(num)
+		if num :- number then error ('no number argument') fi
+		#function that with convert number to assembly
+	fi
+end
+
+parse_line('push constant hello')
+
+
