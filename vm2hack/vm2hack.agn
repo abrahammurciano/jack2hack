@@ -1,0 +1,5 @@
+#!agena
+
+import parse_args
+
+fin, fout := parse_args('asm')
