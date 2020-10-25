@@ -1,13 +1,20 @@
-parse_line := proc (line) is
-	line := trim(line)
-	if "push constant" in line = 1 then	#check if a constant number is inputted
-		local num := tonumber((line split 'push constant ')[2])	#takes number from sequence at index 2 and convert string to number
-		print(num)
-		if num :- number then error ('no number argument') fi
-		#function that with convert number to assembly
+parser := [
+	'command_table' ~ []
+]
+
+proc parser@@parse_push(fout, remainder) is
+	local segment, i := strings.cut(remainder, ' ')
+	i := tonumber(i)
+	if segment = "constant" then
+		asm_gen@@push_constant(fout, i)
 	fi
 end
 
-parse_line('push constant hello')
+proc parser@@parse_line(fout, line) is
+	line := trim(replace(line, '\t', ' '))
+	local command, remainder := strings.cut(line, ' ')	# splits line on first space
+	self.command_table[command](self, fout, remainder)
+end
 
-
+parser.command_table['push'] := parser.parse_push
+# parser.command_table['pop'] := parser.parse_pop
