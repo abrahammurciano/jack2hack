@@ -10,6 +10,7 @@ asm_gen := [
 ]
 
 proc asm_gen@@out(str) is
+	str := if str then str else '' fi
 	io.writeline(self.fout, str)
 end
 
@@ -31,7 +32,7 @@ proc asm_gen@@init_mem() is
 	# set that to address 2348
 	self@@set_mem(self.seg_ptr_addr['that'], 2348)
 
-	io.writeline(fout)
+	self@@out()
 end
 
 proc asm_gen@@set_mem(index, value) is
@@ -42,7 +43,7 @@ proc asm_gen@@set_mem(index, value) is
 end
 
 # function that produces assembly to put contents of D register onto stack (overwrites A register)
-proc asm_gen@@push_d_register(fout) is
+proc asm_gen@@push_d_register() is
 	# load SP into A register
 	self@@out('@' & self.sp)
 	self@@out('A=M')
@@ -55,20 +56,20 @@ proc asm_gen@@push_d_register(fout) is
 	self@@out('M=M+1')
 end
 
-proc asm_gen@@push(fout, segment, i) is
+proc asm_gen@@push(segment, i) is
 	self@@out('// push ' & segment & ' ' & i)
 
 	if segment = 'constant' then
-		self@@push_constant(fout, i)
+		self@@push_constant(i)
 		return
 	elif segment = 'static' then
-		self@@push_static(fout, i)
+		self@@push_static(i)
 		return
 	elif segment = 'temp' then
-		self@@push_temp(fout, i)
+		self@@push_temp(i)
 		return
 	elif segment = 'pointer' then
-		self@@push_pointer(fout, i)
+		self@@push_pointer(i)
 		return
 	elif not segment in ['local', 'this', 'that', 'argument'] then
 		error('Unrecognised segment name "' & segment & '".')
@@ -89,21 +90,21 @@ proc asm_gen@@push(fout, segment, i) is
 	# dereference calculated address
 	self@@out('D=M')
 
-	self@@push_d_register(fout)
+	self@@push_d_register()
 
-	io.writeline(fout)
+	self@@out()
 end
 
-proc asm_gen@@push_constant(fout, i) is
+proc asm_gen@@push_constant(i) is
 	# load i into D register
 	self@@out('@' & i)
 	self@@out('D=A')
 
-	self@@push_d_register(fout)
+	self@@push_d_register()
 
-	io.writeline(fout)
+	self@@out()
 end
 
-proc asm_gen@@push_static(fout, i) is
+proc asm_gen@@push_static(i) is
 
 end

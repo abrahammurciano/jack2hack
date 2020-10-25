@@ -14,5 +14,5 @@ fin_name, fout_name := parse_args('asm')
 asm_gen@@init(fout_name)
 
 for keys line in io.lines(fin_name) do
-	parser@@parse_line(fout, line)
+	parser@@parse_line(line)
 od

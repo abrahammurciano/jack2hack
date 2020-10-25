@@ -2,17 +2,17 @@ parser := [
 	'command_table' ~ []
 ]
 
-proc parser@@parse_push(fout, remainder) is
+proc parser@@parse_push(remainder) is
 	local segment, i := strings.cut(remainder, ' ')
 	i := tonumber(i)
-	asm_gen@@push(fout, segment, i)
+	asm_gen@@push(segment, i)
 end
 
 
-proc parser@@parse_line(fout, line) is
+proc parser@@parse_line(line) is
 	line := trim(replace(line, '\t', ' '))
 	local command, remainder := strings.cut(line, ' ')	# splits line on first space
-	self.command_table[command](self, fout, remainder)
+	self.command_table[command](self, remainder)
 end
 
 parser.command_table['push'] := parser.parse_push
