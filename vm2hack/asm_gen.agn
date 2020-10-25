@@ -1,29 +1,39 @@
 asm_gen := [
+	seg_ptr_addr = [
+		'local' ~ 1,
+		'argument' ~ 2,
+		'this' ~ 3,
+		'that' ~ 4
+	],
 	sp = 0,
-	lcl = 1,
-	arg = 2,
-	this = 3,
-	that = 4,
-	temp = 5,
-	static = 16,
 	stack = 256
 ]
 
 proc asm_gen@@init_mem(fout) is
 	# set stack pointer (stored in RAM[0]) to address 256
-	io.writeline(fout, '@' & stack)
+	self@@set_mem(fout, self.sp, self.stack)
+
+	# set local to address 2048
+	self@@set_mem(fout, self.seg_ptr_addr['local'], 2048)
+	# set argument to address 2148
+	self@@set_mem(fout, self.seg_ptr_addr['argument'], 2148)
+	# set this to address 2248
+	self@@set_mem(fout, self.seg_ptr_addr['this'], 2248)
+	# set that to address 2348
+	self@@set_mem(fout, self.seg_ptr_addr['that'], 2348)
+
+	io.writeline(fout)
+end
+
+proc asm_gen@@set_mem(fout, index, value) is
+	io.writeline(fout, '@' & value)
 	io.writeline(fout, 'D=A')
-	io.writeline(fout, '@' & sp)
+	io.writeline(fout, '@' & index)
 	io.writeline(fout, 'M=D')
 end
 
-proc asm_gen@@push_constant(fout, i) is
-	io.writeline(fout, '// push constant ' & i)
-
-	# load i into D register
-	io.writeline(fout, '@' & i)
-	io.writeline(fout, 'D=A')
-
+# function that produces assembly to put contents of D register onto stack (overwrites A register)
+proc asm_gen@@push_d_register(fout) is
 	# load SP into A register
 	io.writeline(fout, '@' & self.sp)
 	io.writeline(fout, 'A=M')
@@ -34,4 +44,53 @@ proc asm_gen@@push_constant(fout, i) is
 	# increment stack pointer
 	io.writeline(fout, '@' & self.sp)
 	io.writeline(fout, 'M=M+1')
+end
+
+proc asm_gen@@push(fout, segment, i) is
+	io.writeline(fout, '// push ' & segment & ' ' & i)
+
+	if segment = 'constant' then
+		self@@push_constant(fout, i)
+		return
+	elif segment = 'static' then
+		self@@push_static(fout, i)
+		return
+	elif segment = 'temp' then
+		self@@push_temp(fout, i)
+		return
+	elif segment = 'pointer' then
+		self@@push_pointer(fout, i)
+		return
+	elif not segment in ['local', 'this', 'that', 'argument'] then
+		error('Unrecognised segment name "' & segment & '".')
+	fi
+
+	local ptr_addr := self.seg_ptr_addr[segment]
+
+	# set D to segment address
+	io.writeline(fout, '@' & ptr_addr)
+	io.writeline(fout, 'D=M')
+
+	# set A to i
+	io.writeline(fout, '@' & i)
+
+	# add base and offset
+	io.writeline(fout, 'A=D+A')
+
+	# dereference calculated address
+	io.writeline(fout, 'D=M')
+
+	self@@push_d_register(fout)
+
+	io.writeline(fout)
+end
+
+proc asm_gen@@push_constant(fout, i) is
+	# load i into D register
+	io.writeline(fout, '@' & i)
+	io.writeline(fout, 'D=A')
+
+	self@@push_d_register(fout)
+
+	io.writeline(fout)
 end
