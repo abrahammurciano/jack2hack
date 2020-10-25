@@ -110,21 +110,21 @@ proc asm_gen@@push_static(i) is
 end
 
 proc asm_gen@@push_temp(i) is
-	if i > 8 then 
+	if i > 8 then
 		error('Offest out of bounds. Offest "' & i & '" cannot be greater than 8.')
-	
+
 	# load base into D register
 	self@@out('@' & 5)
 	self@@out('D=A')
-	
+
 	# load offset into A register
 	self@@out('@' & i)
 
 	# load base plus offset sum to A register
 	self@@out('A=D+A')
-	
+
 	# load contents of base plus offset in D register
 	self@@out('D=M')
 
 	push_d_register(fout)
-	
+
