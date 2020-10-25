@@ -9,45 +9,54 @@ asm_gen := [
 	stack = 256
 ]
 
-proc asm_gen@@init_mem(fout) is
+proc asm_gen@@out(str) is
+	io.writeline(self.fout, str)
+end
+
+proc asm_gen@@init(fout_name) is
+	self.fout := io.open(fout_name, 'w')
+	self@@init_mem()
+end
+
+proc asm_gen@@init_mem() is
 	# set stack pointer (stored in RAM[0]) to address 256
-	self@@set_mem(fout, self.sp, self.stack)
+	self@@set_mem(self.sp, self.stack)
 
 	# set local to address 2048
-	self@@set_mem(fout, self.seg_ptr_addr['local'], 2048)
+	self@@set_mem(self.seg_ptr_addr['local'], 2048)
 	# set argument to address 2148
-	self@@set_mem(fout, self.seg_ptr_addr['argument'], 2148)
+	self@@set_mem(self.seg_ptr_addr['argument'], 2148)
 	# set this to address 2248
-	self@@set_mem(fout, self.seg_ptr_addr['this'], 2248)
+	self@@set_mem(self.seg_ptr_addr['this'], 2248)
 	# set that to address 2348
-	self@@set_mem(fout, self.seg_ptr_addr['that'], 2348)
+	self@@set_mem(self.seg_ptr_addr['that'], 2348)
 
 	io.writeline(fout)
 end
 
-proc asm_gen@@set_mem(fout, index, value) is
-	io.writeline(fout, '@' & value)
-	io.writeline(fout, 'D=A')
-	io.writeline(fout, '@' & index)
-	io.writeline(fout, 'M=D')
+proc asm_gen@@set_mem(index, value) is
+	self@@out('@' & value)
+	self@@out('D=A')
+	self@@out('@' & index)
+	self@@out('M=D')
 end
 
 # function that produces assembly to put contents of D register onto stack (overwrites A register)
 proc asm_gen@@push_d_register(fout) is
 	# load SP into A register
-	io.writeline(fout, '@' & self.sp)
-	io.writeline(fout, 'A=M')
+	self@@out('@' & self.sp)
+	self@@out('A=M')
 
 	# store i (now in D register) into RAM[SP]
-	io.writeline(fout, 'M=D')
+	self@@out('M=D')
 
 	# increment stack pointer
-	io.writeline(fout, '@' & self.sp)
-	io.writeline(fout, 'M=M+1')
+	self@@out('@' & self.sp)
+	self@@out('M=M+1')
 end
 
 proc asm_gen@@push(fout, segment, i) is
-	io.writeline(fout, '// push ' & segment & ' ' & i)
+	self@@out('// push ' & segment & ' ' & i)
 
 	if segment = 'constant' then
 		self@@push_constant(fout, i)
@@ -68,17 +77,17 @@ proc asm_gen@@push(fout, segment, i) is
 	local ptr_addr := self.seg_ptr_addr[segment]
 
 	# set D to segment address
-	io.writeline(fout, '@' & ptr_addr)
-	io.writeline(fout, 'D=M')
+	self@@out('@' & ptr_addr)
+	self@@out('D=M')
 
 	# set A to i
-	io.writeline(fout, '@' & i)
+	self@@out('@' & i)
 
 	# add base and offset
-	io.writeline(fout, 'A=D+A')
+	self@@out('A=D+A')
 
 	# dereference calculated address
-	io.writeline(fout, 'D=M')
+	self@@out('D=M')
 
 	self@@push_d_register(fout)
 
@@ -87,10 +96,14 @@ end
 
 proc asm_gen@@push_constant(fout, i) is
 	# load i into D register
-	io.writeline(fout, '@' & i)
-	io.writeline(fout, 'D=A')
+	self@@out('@' & i)
+	self@@out('D=A')
 
 	self@@push_d_register(fout)
 
 	io.writeline(fout)
+end
+
+proc asm_gen@@push_static(fout, i) is
+
 end
