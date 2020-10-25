@@ -113,7 +113,7 @@ end
 
 proc asm_gen@@push_temp(i) is
 	if i > 8 then
-		error('Offest out of bounds. Offest "' & i & '" cannot be greater than 8.')
+		error('Offset out of bounds. Offset "' & i & '" cannot be greater than 8.')
 	fi
 
 	# load base into D register
