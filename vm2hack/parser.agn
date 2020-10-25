@@ -7,8 +7,17 @@ proc parser@@parse_push(fout, remainder) is
 	i := tonumber(i)
 	if segment = "constant" then
 		asm_gen@@push_constant(fout, i)
+	elif segment in ["local", "this", "that", "argument"] then
+		asm_gen@@push(fout, i)
+	elif segment = "static" then
+		asm_gen@@push_static(fout, i)
+	elif segment = "temp" then
+		asm_gen@@push_temp(fout, i)
+	elif segment = "pointer" then
+		asm_gen@@push_pointer(fout, i)
 	fi
 end
+
 
 proc parser@@parse_line(fout, line) is
 	line := trim(replace(line, '\t', ' '))
