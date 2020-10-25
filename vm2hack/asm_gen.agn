@@ -1,26 +1,37 @@
-asm_gen := []
+asm_gen := [
+	sp = 0,
+	lcl = 1,
+	arg = 2,
+	this = 3,
+	that = 4,
+	temp = 5,
+	static = 16,
+	stack = 256
+]
 
 proc asm_gen@@init_mem(fout) is
 	# set stack pointer (stored in RAM[0]) to address 256
-	io.writeline(fout, '@256')
+	io.writeline(fout, '@' & stack)
 	io.writeline(fout, 'D=A')
-	io.writeline(fout, '@0')
+	io.writeline(fout, '@' & sp)
 	io.writeline(fout, 'M=D')
 end
 
 proc asm_gen@@push_constant(fout, i) is
+	io.writeline(fout, '// push constant ' & i)
+
 	# load i into D register
-	io.writeline(fout, '@' & tostring(i))
+	io.writeline(fout, '@' & i)
 	io.writeline(fout, 'D=A')
 
 	# load SP into A register
-	io.writeline(fout, '@0')
+	io.writeline(fout, '@' & self.sp)
 	io.writeline(fout, 'A=M')
 
 	# store i (now in D register) into RAM[SP]
 	io.writeline(fout, 'M=D')
 
 	# increment stack pointer
-	io.writeline(fout, '@0')
+	io.writeline(fout, '@' & self.sp)
 	io.writeline(fout, 'M=M+1')
 end
