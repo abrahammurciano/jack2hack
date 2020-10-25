@@ -11,9 +11,8 @@ if args[1] = null then
 fi
 
 fin_name, fout_name := parse_args('asm')
-fout := io.open(fout_name, 'w')
-asm_gen@@init_mem(fout)
+asm_gen@@init(fout_name)
 
 for keys line in io.lines(fin_name) do
-	parser@@parse_line(fout, line)
+	parser@@parse_line(line)
 od
