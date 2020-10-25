@@ -16,6 +16,7 @@ end
 
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
+	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
 	self@@init_mem()
 end
 
@@ -61,20 +62,23 @@ proc asm_gen@@push(segment, i) is
 
 	if segment = 'constant' then
 		self@@push_constant(i)
-		return
 	elif segment = 'static' then
 		self@@push_static(i)
-		return
 	elif segment = 'temp' then
 		self@@push_temp(i)
-		return
 	elif segment = 'pointer' then
 		self@@push_pointer(i)
-		return
-	elif not segment in ['local', 'this', 'that', 'argument'] then
+	elif segment in ['local', 'argument', 'this', 'that'] then
+		self@@push_latt(segment, i)
+	else
 		error('Unrecognised segment name "' & segment & '".')
 	fi
 
+	self@@out()
+end
+
+# push local, argument, this, or that
+proc asm_gen@@push_latt(segment, i) is
 	local ptr_addr := self.seg_ptr_addr[segment]
 
 	# set D to segment address
@@ -91,8 +95,6 @@ proc asm_gen@@push(segment, i) is
 	self@@out('D=M')
 
 	self@@push_d_register()
-
-	self@@out()
 end
 
 proc asm_gen@@push_constant(i) is
@@ -101,10 +103,10 @@ proc asm_gen@@push_constant(i) is
 	self@@out('D=A')
 
 	self@@push_d_register()
-
-	self@@out()
 end
 
 proc asm_gen@@push_static(i) is
-
+	self@@out('@' & self.file_base_name & '.' & i)
+	self@@out('D=M')
+	self@@push_d_register()
 end
