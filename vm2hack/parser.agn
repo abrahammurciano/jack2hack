@@ -31,7 +31,7 @@ proc parser@@parse_pop(remainder) is
 	if segment = 'constant' then
 		error('Instruction "pop constant" is illegal.')
 	fi
-	asm_gen@@_pop(segment, i)
+	asm_gen@@gen_pop(segment, i)
 end
 
 proc parser@@parse_line(line) is
@@ -43,15 +43,15 @@ end
 parser.command_table['push'] := parser.parse_push
 parser.command_table['pop'] := parser.parse_pop
 
-parser.command_table['add'] := asm_gen.add
-parser.command_table['sub'] := asm_gen.sub
-parser.command_table['neg'] := asm_gen.neg
-parser.command_table['eq'] := asm_gen.eq
-parser.command_table['gt'] := asm_gen.gt
-parser.command_table['lt'] := asm_gen.lt
-parser.command_table['and'] := asm_gen.and
-parser.command_table['or'] := asm_gen.or
-parser.command_table['not'] := asm_gen.not
+parser.command_table['add'] := asm_gen.gen_add
+parser.command_table['sub'] := asm_gen.gen_sub
+parser.command_table['neg'] := asm_gen.gen_neg
+parser.command_table['eq'] := asm_gen.gen_eq
+parser.command_table['gt'] := asm_gen.gen_gt
+parser.command_table['lt'] := asm_gen.gen_lt
+parser.command_table['and'] := asm_gen.gen_and
+parser.command_table['or'] := asm_gen.gen_or
+parser.command_table['not'] := asm_gen.gen_not
 
 parser.command_table['label'] := parser.label
 parser.command_table['goto'] := parser.goto

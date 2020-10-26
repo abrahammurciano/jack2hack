@@ -55,7 +55,8 @@ proc asm_gen@@get_seg_ptr_addr(segment) is
 	return ptr_addr
 end
 
-proc asm_gen@@push(segment, i) is
+# generate assembly for a push command
+proc asm_gen@@gen_push(segment, i) is
 	self@@out('// push ' & segment & ' ' & i)
 
 	if segment = 'constant' then
@@ -73,7 +74,8 @@ proc asm_gen@@push(segment, i) is
 	self@@out()
 end
 
-proc asm_gen@@_pop(segment, i) is
+# generate assembly for a pop command
+proc asm_gen@@gen_pop(segment, i) is
 	self@@out('// pop ' & segment & ' ' & i)
 
 	if segment = 'static' then
