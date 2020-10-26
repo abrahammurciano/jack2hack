@@ -47,18 +47,12 @@ proc asm_gen@@set_mem(index, value) is
 	self@@out('M=D')
 end
 
-# function that produces assembly to put contents of D register onto stack (overwrites A register)
-proc asm_gen@@push_d_register(_) is
-	# load SP into A register
-	self@@out('@' & self.sp)
-	self@@out('A=M')
-
-	# store i (now in D register) into RAM[SP]
-	self@@out('M=D')
-
-	# increment stack pointer
-	self@@out('@' & self.sp)
-	self@@out('M=M+1')
+proc asm_gen@@get_seg_ptr_addr(segment) is
+	local ptr_addr := self.seg_ptr_addr[segment]
+	if not ptr_addr then
+		error('Unknown could not find pointer of segment "' & segment & '".')
+	fi
+	return ptr_addr
 end
 
 proc asm_gen@@push(segment, i) is
@@ -73,7 +67,7 @@ proc asm_gen@@push(segment, i) is
 	elif segment = 'pointer' then
 		self@@push_pointer(i)
 	else
-		self@@push_latt(self.seg_ptr_addr[segment], i)
+		self@@push_latt(self@@get_seg_ptr_addr(segment), i)
 	fi
 
 	self@@out()
@@ -89,14 +83,37 @@ proc asm_gen@@_pop(segment, i) is
 	elif segment = 'pointer' then
 		self@@pop_pointer(i)
 	else
-		local ptr_addr := self.seg_ptr_addr[segment]
-		if not ptr_addr then
-			error('Unknown could not find pointer of segment "' & segment & '".')
-		fi
-		self@@pop_latt(ptr_addr, i)
+		self@@pop_latt(self@@get_seg_ptr_addr(segment), i)
 	fi
 
 	self@@out()
+end
+
+# function that produces assembly to put contents of D register onto stack (overwrites A register)
+proc asm_gen@@push_d_register(_) is
+	# load SP into A register
+	self@@out('@' & self.sp)
+	self@@out('A=M')
+
+	# store i (now in D register) into RAM[SP]
+	self@@out('M=D')
+
+	# increment stack pointer
+	self@@out('@' & self.sp)
+	self@@out('M=M+1')
+end
+
+# function that produces assembly to pop top of stack into D register (overwrites A register)
+proc asm_gen@@pop_d_register(_) is
+	# decrement stack pointer
+	self@@out('@' & self.sp)
+	self@@out('M=M-1')
+
+	# load SP into A register
+	self@@out('A=M')
+
+	# store RAM[SP] into D register
+	self@@out('M=D')
 end
 
 # push local, argument, this, or that
@@ -115,6 +132,32 @@ proc asm_gen@@push_latt(ptr_addr, i) is
 	self@@out('D=M')
 
 	self@@push_d_register()
+end
+
+# pop local, argument, this, or that
+proc asm_gen@@pop_latt(ptr_addr, i) is
+	# set D to segment address
+	self@@out('@' & ptr_addr)
+	self@@out('D=M')
+
+	# set A to i
+	self@@out('@' & i)
+
+	# add base and offset
+	self@@out('D=D+A')
+
+	# put address in R13
+	self@@out('@13')
+	self@@out('M=D')
+
+	self@@pop_d_register()
+
+	# get address from R13 into A
+	self@@out('@13')
+	self@@out('A=M')
+
+	# store D (equal to top of stack) in RAM[address]
+	self@@out('M=D')
 end
 
 proc asm_gen@@push_constant(i) is
