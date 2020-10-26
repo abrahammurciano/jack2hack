@@ -28,3 +28,6 @@ parser.command_table['and'] := parser.asm_gen.and
 parser.command_table['or'] := parser.asm_gen.or
 parser.command_table['not'] := parser.asm_gen.not
 
+parser.command_table['label'] := parser.label
+parser.command_table['goto'] := parser.goto
+parser.command_table['if_goto'] := parser.if_goto
