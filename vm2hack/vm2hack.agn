@@ -10,11 +10,22 @@ if args[1] = null then
 	args[1] := 'test.vm'
 fi
 
-fin_name, fout_name := parse_args('asm')
-asm_gen@@init(fout_name)
+main := proc() is
+	local fin_name, fout_name := parse_args('asm')
+	asm_gen@@init(fout_name)
 
-for keys line in io.lines(fin_name) do
-	parser@@parse_line(line)
-od
+	local i := 1
+	for keys line in io.lines(fin_name) do
+		try
+			parser@@parse_line(line)
+		catch msg then
+			print('Error in "' & fin_name & '" on line ' & i & ' near "' & line & '".')
+			print(msg)
+		yrt
+		i++
+	od
 
-asm_gen@@destruct()
+	asm_gen@@destruct()
+end
+
+main()

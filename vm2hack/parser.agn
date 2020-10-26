@@ -1,13 +1,38 @@
 parser := [
-	'command_table' ~ []
+	'command_table' ~ [],
+	'segments' ~ [
+		'local',
+		'argument',
+		'this',
+		'that',
+		'constant',
+		'static',
+		'temp',
+		'pointer'
+	]
 ]
 
-proc parser@@parse_push(remainder) is
+proc parser@@parse_stack_ops(remainder) is
 	local segment, i := strings.cut(remainder, ' ')
-	i := tonumber(i)
+	if segment in self.segments then
+		i := tonumber(i)
+		return segment, i
+	fi
+	error('Unrecognised segment name "' & segment & '".')
+end
+
+proc parser@@parse_push(remainder) is
+	local segment, i := self@@parse_stack_ops(remainder)
 	asm_gen@@push(segment, i)
 end
 
+proc parser@@parse_pop(remainder) is
+	local segment, i := self@@parse_stack_ops(remainder)
+	if segment = 'constant' then
+		error('Instruction "pop constant" is illegal.')
+	fi
+	asm_gen@@_pop(segment, i)
+end
 
 proc parser@@parse_line(line) is
 	line := trim(replace(line, '\t', ' '))
@@ -16,4 +41,4 @@ proc parser@@parse_line(line) is
 end
 
 parser.command_table['push'] := parser.parse_push
-# parser.command_table['pop'] := parser.parse_pop
+parser.command_table['pop'] := parser.parse_pop

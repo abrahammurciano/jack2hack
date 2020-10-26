@@ -72,19 +72,35 @@ proc asm_gen@@push(segment, i) is
 		self@@push_temp(i)
 	elif segment = 'pointer' then
 		self@@push_pointer(i)
-	elif segment in ['local', 'argument', 'this', 'that'] then
-		self@@push_latt(segment, i)
 	else
-		error('Unrecognised segment name "' & segment & '".')
+		self@@push_latt(self.seg_ptr_addr[segment], i)
+	fi
+
+	self@@out()
+end
+
+proc asm_gen@@_pop(segment, i) is
+	self@@out('// pop ' & segment & ' ' & i)
+
+	if segment = 'static' then
+		self@@pop_static(i)
+	elif segment = 'temp' then
+		self@@pop_temp(i)
+	elif segment = 'pointer' then
+		self@@pop_pointer(i)
+	else
+		local ptr_addr := self.seg_ptr_addr[segment]
+		if not ptr_addr then
+			error('Unknown could not find pointer of segment "' & segment & '".')
+		fi
+		self@@pop_latt(ptr_addr, i)
 	fi
 
 	self@@out()
 end
 
 # push local, argument, this, or that
-proc asm_gen@@push_latt(segment, i) is
-	local ptr_addr := self.seg_ptr_addr[segment]
-
+proc asm_gen@@push_latt(ptr_addr, i) is
 	# set D to segment address
 	self@@out('@' & ptr_addr)
 	self@@out('D=M')
