@@ -16,3 +16,5 @@ asm_gen@@init(fout_name)
 for keys line in io.lines(fin_name) do
 	parser@@parse_line(line)
 od
+
+asm_gen@@destruct()

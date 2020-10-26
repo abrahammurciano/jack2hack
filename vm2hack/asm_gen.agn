@@ -13,11 +13,14 @@ proc asm_gen@@out(str) is
 	str := if str then str else '' fi
 	io.writeline(self.fout, str)
 end
-
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
 	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
 	self@@init_mem()
+end
+
+proc asm_gen@@destruct() is
+	io.close(self.fout)
 end
 
 proc asm_gen@@init_mem() is
@@ -133,19 +136,12 @@ proc asm_gen@@push_temp(i) is
 end
 
 proc asm_gen@@push_pointer(i) is
-
-	if i = 0 then
-		# load contents of this into D register
-		self@@out('@' & 3)
-		self@@out('D=M')
-
-		self@@push_d_register()
-
-	else
-		# load contents of that into D register
-		self@@out('@' & 4)
-		self@@out('D=M')
-
-		self@@push_d_register()
+	if i < 0 or i > 1 then
+		error('Pointer segment offset must be 1 or 0.')
 	fi
+	# load contents of this into D register
+	self@@out('@' & 3 + i)
+	self@@out('D=M')
+
+	self@@push_d_register()
 end
