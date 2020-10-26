@@ -17,3 +17,14 @@ end
 
 parser.command_table['push'] := parser.parse_push
 # parser.command_table['pop'] := parser.parse_pop
+
+parser.command_table['add'] := parser.asm_gen.add
+parser.command_table['sub'] := parser.asm_gen.sub
+parser.command_table['neg'] := parser.asm_gen.neg
+parser.command_table['eq'] := parser.asm_gen.eq
+parser.command_table['gt'] := parser.asm_gen.gt
+parser.command_table['lt'] := parser.asm_gen.lt
+parser.command_table['and'] := parser.asm_gen.and
+parser.command_table['or'] := parser.asm_gen.or
+parser.command_table['not'] := parser.asm_gen.not
+
