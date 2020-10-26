@@ -207,3 +207,7 @@ proc asm_gen@@push_pointer(i) is
 
 	self@@push_d_register()
 end
+
+proc asm_gen@@gen_add(_) is
+	print('adding')
+end

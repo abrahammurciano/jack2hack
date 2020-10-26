@@ -1,5 +1,34 @@
 parser := [
 	'command_table' ~ [],
+	'commands' ~ [
+		'no_args' ~ [
+			'add',
+			'sub',
+			'neg',
+			'eq',
+			'gt',
+			'lt,',
+			'and',
+			'or',
+			'not',
+			'return'
+		],
+		'one_arg' ~ [
+			'label',
+			'goto',
+			'if-goto'
+		],
+		'two_arg' ~ [
+			'pop',
+			'push',
+			'function',
+			'call'
+		],
+		'memory' ~ [
+			'pop',
+			'push'
+		]
+	],
 	'segments' ~ [
 		'local',
 		'argument',
@@ -12,47 +41,58 @@ parser := [
 	]
 ]
 
-proc parser@@parse_stack_ops(remainder) is
-	local segment, i := strings.cut(remainder, ' ')
-	if segment in self.segments then
-		i := tonumber(i)
-		return segment, i
+proc parser@@validate_no_args_command(command) is
+	if not command in self.commands.no_args then
+		error('Command "' & command & '" (with no arguments) is invalid.')
 	fi
-	error('Unrecognised segment name "' & segment & '".')
 end
 
-proc parser@@parse_push(remainder) is
-	local segment, i := self@@parse_stack_ops(remainder)
-	asm_gen@@push(segment, i)
+proc parser@@validate_one_arg_command(command, arg1) is
+	if not command in self.commands.one_arg then
+		error('Command "' & command & '" (with one argument) is invalid.')
+	fi
 end
 
-proc parser@@parse_pop(remainder) is
-	local segment, i := self@@parse_stack_ops(remainder)
-	if segment = 'constant' then
-		error('Instruction "pop constant" is illegal.')
+proc parser@@validate_two_arg_command(command, arg1, arg2) is
+	if not command in self.commands.two_arg then
+		error('Command "' & command & '" (with two arguments) is invalid.')
 	fi
-	asm_gen@@gen_pop(segment, i)
+	if command in self.commands.memory and not arg1 in self.segments then
+		error('Command "' & command & '" expected a segment name following it, received "' & arg1 & '".')
+	fi
+	if command = 'pop' and arg1 = 'constant' then
+		error('Cannot pop to "constant" segment.')
+	fi
+	# TODO validate function and call commands
 end
 
 proc parser@@parse_line(line) is
 	line := trim(replace(line, '\t', ' '))
-	local command, remainder := strings.cut(line, ' ')	# splits line on first space
-	self.command_table[command](self, remainder)
+	local command, args := strings.cut(line, ' ')	# splits line on first space
+	if not args then
+		self@@validate_no_args_command(command)
+		self.command_table[command]()
+		return
+	fi
+	local arg1, arg2 := strings.cut(args, ' ')
+	if not arg2 then
+		self@@validate_one_arg_command(command, arg1)
+		self.command_table[command](arg1)
+	else
+		self@@validate_two_arg_command(command, arg1, arg2)
+		self.command_table[command](arg1, arg2)
+	fi
 end
 
-parser.command_table['push'] := parser.parse_push
-parser.command_table['pop'] := parser.parse_pop
+parser.command_table['add'] := << () -> asm_gen@@gen_add() >>
+parser.command_table['sub'] := << () -> asm_gen@@gen_sub() >>
+parser.command_table['neg'] := << () -> asm_gen@@gen_neg() >>
+parser.command_table['eq'] := << () -> asm_gen@@gen_eq() >>
+parser.command_table['gt'] := << () -> asm_gen@@gen_gt() >>
+parser.command_table['lt'] := << () -> asm_gen@@gen_lt() >>
+parser.command_table['and'] := << () -> asm_gen@@gen_and() >>
+parser.command_table['or'] := << () -> asm_gen@@gen_or() >>
+parser.command_table['not'] := << () -> asm_gen@@gen_not() >>
 
-parser.command_table['add'] := asm_gen.gen_add
-parser.command_table['sub'] := asm_gen.gen_sub
-parser.command_table['neg'] := asm_gen.gen_neg
-parser.command_table['eq'] := asm_gen.gen_eq
-parser.command_table['gt'] := asm_gen.gen_gt
-parser.command_table['lt'] := asm_gen.gen_lt
-parser.command_table['and'] := asm_gen.gen_and
-parser.command_table['or'] := asm_gen.gen_or
-parser.command_table['not'] := asm_gen.gen_not
-
-parser.command_table['label'] := parser.label
-parser.command_table['goto'] := parser.goto
-parser.command_table['if_goto'] := parser.if_goto
+parser.command_table['pop'] := << (segment, i) -> asm_gen@@gen_pop(segment, i) >>
+parser.command_table['push'] := << (segment, i) -> asm_gen@@gen_push(segment, i) >>
