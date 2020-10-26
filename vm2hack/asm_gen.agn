@@ -13,17 +13,18 @@ proc asm_gen@@out(str) is
 	str := if str then str else '' fi
 	io.writeline(self.fout, str)
 end
+
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
 	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
 	self@@init_mem()
 end
 
-proc asm_gen@@destruct() is
+proc asm_gen@@destruct(_) is
 	io.close(self.fout)
 end
 
-proc asm_gen@@init_mem() is
+proc asm_gen@@init_mem(_) is
 	# set stack pointer (stored in RAM[0]) to address 256
 	self@@set_mem(self.sp, self.stack)
 
@@ -47,7 +48,7 @@ proc asm_gen@@set_mem(index, value) is
 end
 
 # function that produces assembly to put contents of D register onto stack (overwrites A register)
-proc asm_gen@@push_d_register() is
+proc asm_gen@@push_d_register(_) is
 	# load SP into A register
 	self@@out('@' & self.sp)
 	self@@out('A=M')
