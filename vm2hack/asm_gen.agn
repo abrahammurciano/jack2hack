@@ -227,3 +227,19 @@ proc asm_gen@@gen_add(_) is
 
 	self@@out()
 end
+
+proc asm_gen@@gen_sub(_) is
+	self@@out('// sub')
+
+	# place first value into D register
+	self@@pop_register('D')
+
+	# place address to second value (SP-1) in A register
+	self@@out('@' & self.sp)
+	self@@out('A=M-1')
+
+	# subtract first value (from D register) from second value (directly in memory)
+	self@@out('M=M-D')
+
+	self@@out()
+end
