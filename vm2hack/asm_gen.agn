@@ -105,8 +105,12 @@ proc asm_gen@@push_d_register(_) is
 	self@@out('M=M+1')
 end
 
-# function that produces assembly to pop top of stack into D register (overwrites A register)
-proc asm_gen@@pop_d_register(_) is
+# function that produces assembly to pop top of stack into D or A register (overwrites A register)
+proc asm_gen@@pop_register(r) is
+	if r <> 'D' and r <> 'A' then
+		error(r & ' is not a register.')
+	fi
+
 	# decrement stack pointer
 	self@@out('@' & self.sp)
 	self@@out('M=M-1')
@@ -115,7 +119,7 @@ proc asm_gen@@pop_d_register(_) is
 	self@@out('A=M')
 
 	# store RAM[SP] into D register
-	self@@out('M=D')
+	self@@out(r & '=M')
 end
 
 # push local, argument, this, or that
@@ -152,7 +156,7 @@ proc asm_gen@@pop_latt(ptr_addr, i) is
 	self@@out('@13')
 	self@@out('M=D')
 
-	self@@pop_d_register()
+	self@@pop_register('D')
 
 	# get address from R13 into A
 	self@@out('@13')
@@ -209,5 +213,17 @@ proc asm_gen@@push_pointer(i) is
 end
 
 proc asm_gen@@gen_add(_) is
-	print('adding')
+	self@@out('// add')
+
+	# place first value into D register
+	self@@pop_register('D')
+
+	# place address to second value (SP-1) in A register
+	self@@out('@' & self.sp)
+	self@@out('A=M-1')
+
+	# add first value (from D register) to second value (directly in memory)
+	self@@out('M=D+M')
+
+	self@@out()
 end
