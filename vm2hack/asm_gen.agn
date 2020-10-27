@@ -243,3 +243,19 @@ proc asm_gen@@gen_sub(_) is
 
 	self@@out()
 end
+
+proc asm_gen@@gen_neg(_) is
+	self@@out('// neg')
+
+	# load 0 into D register
+	self@@out('@0')
+	self@@out('D=A')
+
+	# load address of topmost element into A
+	self@@out('A=M-1')
+
+	# top element = 0 - top element
+	self@@out('M=D-M')
+
+	self@@out()
+end
