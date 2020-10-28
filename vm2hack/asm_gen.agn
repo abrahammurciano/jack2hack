@@ -340,7 +340,7 @@ proc asm_gen@@gen_not(_) is
 	self@@out('D=-M')
 
 	#subtract 1 to complete the not
-	seld@@out('M=D-1')
+	self@@out('M=D-1')
 
 
 	self@@out()
