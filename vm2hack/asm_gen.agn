@@ -1,3 +1,5 @@
+run 'label_maker.agn'
+
 asm_gen := [
 	seg_ptr_addr = [
 		'local' ~ 1,
@@ -6,7 +8,8 @@ asm_gen := [
 		'that' ~ 4
 	],
 	sp = 0,
-	stack = 256
+	stack = 256,
+	label_maker = new_label_maker()
 ]
 
 proc asm_gen@@out(str) is
@@ -212,6 +215,12 @@ proc asm_gen@@push_pointer(i) is
 	self@@push_d_register()
 end
 
+# generate assembly to put the address to the top of stack into A register
+proc asm_gen@@point_to_stack_top(_) is
+	self@@out('@' & self.sp)
+	self@@out('A=M-1')
+end
+
 proc asm_gen@@gen_add(_) is
 	self@@out('// add')
 
@@ -219,8 +228,7 @@ proc asm_gen@@gen_add(_) is
 	self@@pop_register('D')
 
 	# place address to second value (SP-1) in A register
-	self@@out('@' & self.sp)
-	self@@out('A=M-1')
+	self@@point_to_stack_top()
 
 	# add first value (from D register) to second value (directly in memory)
 	self@@out('M=D+M')
@@ -235,8 +243,7 @@ proc asm_gen@@gen_sub(_) is
 	self@@pop_register('D')
 
 	# place address to second value (SP-1) in A register
-	self@@out('@' & self.sp)
-	self@@out('A=M-1')
+	self@@point_to_stack_top()
 
 	# subtract first value (from D register) from second value (directly in memory)
 	self@@out('M=M-D')
@@ -252,10 +259,10 @@ proc asm_gen@@gen_neg(_) is
 	self@@out('D=A')
 
 	# load address of topmost element into A
-	self@@out('A=M-1')
+	self@@point_to_stack_top()
 
-	# top element = 0 - top element
-	self@@out('M=D-M')
+	# top element = -top element
+	self@@out('M=-M')
 
 	self@@out()
 end
