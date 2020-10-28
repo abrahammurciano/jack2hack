@@ -336,11 +336,8 @@ proc asm_gen@@gen_not(_) is
 
 	self@@point_to_stack_top()
 
-	#inverts value of either 0 or 1 at position in memory M
-	self@@out('D=-M')
-
-	#subtract 1 to complete the not
-	self@@out('M=D-1')
+	#inverts all bits
+	self@@out('M=!M')
 
 
 	self@@out()
