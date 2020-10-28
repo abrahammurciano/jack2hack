@@ -68,12 +68,18 @@ end
 
 proc parser@@parse_line(line) is
 	line := trim(replace(line, '\t', ' '))
+
+	if line = '' or line[1 to 2] = '//' then
+		return
+	fi
+
 	local command, args := strings.cut(line, ' ')	# splits line on first space
 	if not args then
 		self@@validate_no_args_command(command)
 		self.command_table[command]()
 		return
 	fi
+
 	local arg1, arg2 := strings.cut(args, ' ')
 	if not arg2 then
 		self@@validate_one_arg_command(command, arg1)

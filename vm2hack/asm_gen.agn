@@ -263,8 +263,13 @@ proc asm_gen@@gen_neg(_) is
 	self@@out()
 end
 
-proc asm_gen@@gen_eq(_) is
-	self@@out('// eq')
+# produces assembly for the VM commands eq, gt, and lt
+proc asm_gen@@compare(command) is
+	if not lower(command) in ['eq', 'gt', 'lt'] then
+		error('Command ' & command & ' is not a comparison command.')
+	fi
+
+	self@@out('// ' & lower(command))
 
 	# take one value from stack into D register and decrement SP
 	self@@pop_register('D')
@@ -280,7 +285,7 @@ proc asm_gen@@gen_eq(_) is
 
 	# if D equals 0 (i.e. if values are equal), jump to label_eq
 	self@@out('@' & label_eq)
-	self@@out('D;JEQ')
+	self@@out('D;J' & upper(command))
 
 	# if values are not equal, replace top of stack with 0
 	self@@point_to_stack_top()
@@ -303,18 +308,16 @@ proc asm_gen@@gen_eq(_) is
 	self@@out()
 end
 
-proc asm_gen@@gen_gt(_) is
-	self@@out('// gt')
-	# TODO
+proc asm_gen@@gen_eq(_) is
+	self@@compare('eq')
+end
 
-	self@@out()
+proc asm_gen@@gen_gt(_) is
+	self@@compare('gt')
 end
 
 proc asm_gen@@gen_lt(_) is
-	self@@out('// lt')
-	# TODO
-
-	self@@out()
+	self@@compare('lt')
 end
 
 proc asm_gen@@gen_and(_) is
@@ -337,10 +340,7 @@ proc asm_gen@@gen_not(_) is
 	self@@point_to_stack_top()
 
 	#inverts value of either 0 or 1 at position in memory M
-	self@@out('D=-M')
-
-	#subtract 1 to complete the not
-	self@@out('M=D-1')
+	self@@out('M=!M')
 
 
 	self@@out()
