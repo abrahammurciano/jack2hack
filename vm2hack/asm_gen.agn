@@ -20,7 +20,7 @@ end
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
 	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
-	# self@@init_mem()
+	self@@init_mem()
 end
 
 proc asm_gen@@destruct(_) is
@@ -254,10 +254,6 @@ end
 proc asm_gen@@gen_neg(_) is
 	self@@out('// neg')
 
-	# load 0 into D register
-	self@@out('@0')
-	self@@out('D=A')
-
 	# load address of topmost element into A
 	self@@point_to_stack_top()
 
@@ -269,7 +265,40 @@ end
 
 proc asm_gen@@gen_eq(_) is
 	self@@out('// eq')
-	# TODO
+
+	# take one value from stack into D register and decrement SP
+	self@@pop_register('D')
+
+	# make A register point to topmost stack element
+	self@@point_to_stack_top()
+
+	# subtract D from top
+	self@@out('D=M-D')
+
+	local label_eq := self.label_maker@@make_label()
+	local label_end := self.label_maker@@make_label()
+
+	# if D equals 0 (i.e. if values are equal), jump to label_eq
+	self@@out('@' & label_eq)
+	self@@out('D;JEQ')
+
+	# if values are not equal, replace top of stack with 0
+	self@@point_to_stack_top()
+	self@@out('M=0')
+
+	# then jump to end of block
+	self@@out('@' & label_end)
+	self@@out('0;JMP')
+
+	# define label_eq
+	self@@out('(' & label_eq & ')')
+
+	# replace top of stack with TRUE
+	self@@point_to_stack_top()
+	self@@out('M=-1')
+
+	# define label_end
+	self@@out('(' & label_end & ')')
 
 	self@@out()
 end
