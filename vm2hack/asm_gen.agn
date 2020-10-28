@@ -17,7 +17,7 @@ end
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
 	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
-	self@@init_mem()
+	# self@@init_mem()
 end
 
 proc asm_gen@@destruct(_) is
@@ -256,6 +256,48 @@ proc asm_gen@@gen_neg(_) is
 
 	# top element = 0 - top element
 	self@@out('M=D-M')
+
+	self@@out()
+end
+
+proc asm_gen@@gen_eq(_) is
+	self@@out('// eq')
+	# TODO
+
+	self@@out()
+end
+
+proc asm_gen@@gen_gt(_) is
+	self@@out('// gt')
+	# TODO
+
+	self@@out()
+end
+
+proc asm_gen@@gen_lt(_) is
+	self@@out('// lt')
+	# TODO
+
+	self@@out()
+end
+
+proc asm_gen@@gen_and(_) is
+	self@@out('// and')
+	# TODO
+
+	self@@out()
+end
+
+proc asm_gen@@gen_or(_) is
+	self@@out('// or')
+	# TODO
+
+	self@@out()
+end
+
+proc asm_gen@@gen_not(_) is
+	self@@out('// not')
+	# TODO
 
 	self@@out()
 end
