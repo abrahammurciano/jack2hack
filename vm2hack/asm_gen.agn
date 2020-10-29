@@ -2,12 +2,11 @@ run 'label_maker.agn'
 
 asm_gen := [
 	seg_ptr_addr = [
-		'local' ~ 1,
-		'argument' ~ 2,
-		'this' ~ 3,
-		'that' ~ 4
+		'local' ~ 'LCL',
+		'argument' ~ 'ARG',
+		'this' ~ 'THIS',
+		'that' ~ 'THAT'
 	],
-	sp = 0,
 	stack = 256,
 	label_maker = new_label_maker()
 ]
@@ -20,40 +19,16 @@ end
 proc asm_gen@@init(fout_name) is
 	self.fout := io.open(fout_name, 'w')
 	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
-	self@@init_mem()
 end
 
 proc asm_gen@@destruct(_) is
 	io.close(self.fout)
 end
 
-proc asm_gen@@init_mem(_) is
-	# set stack pointer (stored in RAM[0]) to address 256
-	self@@set_mem(self.sp, self.stack)
-
-	# set local to address 2048
-	self@@set_mem(self.seg_ptr_addr['local'], 2048)
-	# set argument to address 2148
-	self@@set_mem(self.seg_ptr_addr['argument'], 2148)
-	# set this to address 2248
-	self@@set_mem(self.seg_ptr_addr['this'], 2248)
-	# set that to address 2348
-	self@@set_mem(self.seg_ptr_addr['that'], 2348)
-
-	self@@out()
-end
-
-proc asm_gen@@set_mem(index, value) is
-	self@@out('@' & value)
-	self@@out('D=A')
-	self@@out('@' & index)
-	self@@out('M=D')
-end
-
 proc asm_gen@@get_seg_ptr_addr(segment) is
 	local ptr_addr := self.seg_ptr_addr[segment]
 	if not ptr_addr then
-		error('Unknown could not find pointer of segment "' & segment & '".')
+		error('Unknown segment "' & segment & '".')
 	fi
 	return ptr_addr
 end
@@ -97,25 +72,21 @@ end
 # function that produces assembly to put contents of D register onto stack (overwrites A register)
 proc asm_gen@@push_d_register(_) is
 	# load SP into A register
-	self@@out('@' & self.sp)
+	self@@out('@SP')
 	self@@out('A=M')
 
 	# store i (now in D register) into RAM[SP]
 	self@@out('M=D')
 
 	# increment stack pointer
-	self@@out('@' & self.sp)
+	self@@out('@SP')
 	self@@out('M=M+1')
 end
 
 # function that produces assembly to pop top of stack into D or A register (overwrites A register)
-proc asm_gen@@pop_register(r) is
-	if r <> 'D' and r <> 'A' then
-		error(r & ' is not a register.')
-	fi
-
+proc asm_gen@@pop_d_register(_) is
 	# decrement stack pointer
-	self@@out('@' & self.sp)
+	self@@out('@SP')
 	self@@out('M=M-1')
 
 	# load SP into A register
@@ -144,7 +115,12 @@ proc asm_gen@@push_latt(ptr_addr, i) is
 end
 
 # pop local, argument, this, or that
+# ptr_addr can be any of {'LCL', 'ARG', 'THIS', 'THAT'}
 proc asm_gen@@pop_latt(ptr_addr, i) is
+	if not ptr_addr in ['LCL', 'ARG', 'THIS', 'THAT'] then
+		error('Parameter ptr_addr must be one of "LCL", "ARG", "THIS", or "THAT". Received "' & ptr_addr & '".')
+	fi
+
 	# set D to segment address
 	self@@out('@' & ptr_addr)
 	self@@out('D=M')
@@ -159,7 +135,7 @@ proc asm_gen@@pop_latt(ptr_addr, i) is
 	self@@out('@13')
 	self@@out('M=D')
 
-	self@@pop_register('D')
+	self@@pop_d_register()
 
 	# get address from R13 into A
 	self@@out('@13')
@@ -184,7 +160,7 @@ proc asm_gen@@push_static(i) is
 end
 
 proc asm_gen@@pop_static(i) is
-	self@@pop_register('D')
+	self@@pop_d_register()
 	self@@out('@' & self.file_base_name & '.' & i)
 	self@@out('M=D')
 end
@@ -208,7 +184,7 @@ proc asm_gen@@pop_temp(i) is
 		error('Offset out of bounds. Offset "' & i & '" cannot be greater than 8.')
 	fi
 
-	self@@pop_register('D')
+	self@@pop_d_register()
 
 	# load base plus offset sum to A register
 	self@@out('@' & 5 + i)
@@ -231,14 +207,14 @@ proc asm_gen@@pop_pointer(i) is
 	if i < 0 or i > 1 then
 		error('Pointer segment offset must be 1 or 0.')
 	fi
-	self@@pop_register('D')
+	self@@pop_d_register()
 	self@@out('@' & 3 + i)
 	self@@out('M=D')
 end
 
 # generate assembly to put the address to the top of stack into A register
 proc asm_gen@@point_to_stack_top(_) is
-	self@@out('@' & self.sp)
+	self@@out('@SP')
 	self@@out('A=M-1')
 end
 
@@ -247,7 +223,7 @@ end
 # sets M to first operand (in place) and D to second
 proc asm_gen@@pre_binary_op(_) is
 	# place first value into D register
-	self@@pop_register('D')
+	self@@pop_d_register()
 
 	# place address to second value (SP-1) in A register
 	self@@point_to_stack_top()
