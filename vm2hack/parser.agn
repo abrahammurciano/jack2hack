@@ -63,7 +63,6 @@ proc parser@@validate_two_arg_command(command, arg1, arg2) is
 	if command = 'pop' and arg1 = 'constant' then
 		error('Cannot pop to "constant" segment.')
 	fi
-	# TODO validate function and call commands
 end
 
 proc parser@@parse_line(line) is

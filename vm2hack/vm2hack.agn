@@ -5,11 +5,6 @@ run 'parse_args.agn'
 run 'asm_gen.agn'
 run 'parser.agn'
 
-# TODO remove this if. its for testing only
-if args[1] = null then
-	args[1] := 'test.vm'
-fi
-
 main := proc() is
 	local fin_name, fout_name := parse_args('asm')
 	asm_gen@@init(fout_name)
