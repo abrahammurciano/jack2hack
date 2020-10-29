@@ -234,6 +234,7 @@ proc asm_gen@@pop_pointer(i) is
 	self@@pop_register('D')
 	self@@out('@' & 3 + i)
 	self@@out('M=D')
+end
 
 # generate assembly to put the address to the top of stack into A register
 proc asm_gen@@point_to_stack_top(_) is
