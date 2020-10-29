@@ -183,25 +183,37 @@ proc asm_gen@@push_static(i) is
 	self@@push_d_register()
 end
 
+proc asm_gen@@pop_static(i) is
+	self@@pop_register('D')
+	self@@out('@' & self.file_base_name & '.' & i)
+	self@@out('M=D')
+end
+
 proc asm_gen@@push_temp(i) is
 	if i > 8 then
 		error('Offset out of bounds. Offset "' & i & '" cannot be greater than 8.')
 	fi
 
-	# load base into D register
-	self@@out('@' & 5)
-	self@@out('D=A')
-
-	# load offset into A register
-	self@@out('@' & i)
-
 	# load base plus offset sum to A register
-	self@@out('A=D+A')
+	self@@out('@' & 5 + i)
 
 	# load contents of base plus offset in D register
 	self@@out('D=M')
 
 	self@@push_d_register()
+end
+
+proc asm_gen@@pop_temp(i) is
+	if i > 8 then
+		error('Offset out of bounds. Offset "' & i & '" cannot be greater than 8.')
+	fi
+
+	self@@pop_register('D')
+
+	# load base plus offset sum to A register
+	self@@out('@' & 5 + i)
+
+	self@@out('M=D')
 end
 
 proc asm_gen@@push_pointer(i) is
