@@ -215,6 +215,14 @@ proc asm_gen@@push_pointer(i) is
 	self@@push_d_register()
 end
 
+proc asm_gen@@pop_pointer(i) is
+	if i < 0 or i > 1 then
+		error('Pointer segment offset must be 1 or 0.')
+	fi
+	self@@pop_register('D')
+	self@@out('@' & 3 + i)
+	self@@out('M=D')
+
 # generate assembly to put the address to the top of stack into A register
 proc asm_gen@@point_to_stack_top(_) is
 	self@@out('@' & self.sp)
