@@ -93,7 +93,7 @@ proc asm_gen@@pop_d_register(_) is
 	self@@out('A=M')
 
 	# store RAM[SP] into D register
-	self@@out(r & '=M')
+	self@@out('D=M')
 end
 
 # push local, argument, this, or that
