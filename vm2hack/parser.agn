@@ -81,6 +81,15 @@ proc parser@@parse_line(line) is
 	fi
 
 	local arg1, arg2 := strings.cut(args, ' ')
+	try
+		arg2 := tonumber(arg2)
+		if arg2 < 0 then
+			error()
+		fi
+	catch
+		error('Second argument "' & arg2 & '" must be a non negative integer.')
+	yrt
+
 	if not arg2 then
 		self@@validate_one_arg_command(command, arg1)
 		self.command_table[command](arg1)

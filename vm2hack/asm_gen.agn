@@ -221,14 +221,22 @@ proc asm_gen@@point_to_stack_top(_) is
 	self@@out('A=M-1')
 end
 
-proc asm_gen@@gen_add(_) is
-	self@@out('// add')
-
+# performs beginning of any binary operation
+# Pops stack top element into D, then makes A point to next stack element
+# sets M to first operand (in place) and D to second
+proc asm_gen@@pre_binary_op(_) is
 	# place first value into D register
 	self@@pop_register('D')
 
 	# place address to second value (SP-1) in A register
 	self@@point_to_stack_top()
+end
+
+proc asm_gen@@gen_add(_) is
+	self@@out('// add')
+
+	# set M to first operand and D to second
+	self@@pre_binary_op()
 
 	# add first value (from D register) to second value (directly in memory)
 	self@@out('M=D+M')
@@ -239,11 +247,8 @@ end
 proc asm_gen@@gen_sub(_) is
 	self@@out('// sub')
 
-	# place first value into D register
-	self@@pop_register('D')
-
-	# place address to second value (SP-1) in A register
-	self@@point_to_stack_top()
+	# set M to first operand and D to second
+	self@@pre_binary_op()
 
 	# subtract first value (from D register) from second value (directly in memory)
 	self@@out('M=M-D')
@@ -271,13 +276,10 @@ proc asm_gen@@compare(command) is
 
 	self@@out('// ' & lower(command))
 
-	# take one value from stack into D register and decrement SP
-	self@@pop_register('D')
+	# set M to first operand and D to second
+	self@@pre_binary_op()
 
-	# make A register point to topmost stack element
-	self@@point_to_stack_top()
-
-	# subtract D from top
+	# subtract second operand from first
 	self@@out('D=M-D')
 
 	local label_eq := self.label_maker@@make_label()
@@ -322,14 +324,22 @@ end
 
 proc asm_gen@@gen_and(_) is
 	self@@out('// and')
-	# TODO
+
+	# set M to first operand and D to second
+	self@@pre_binary_op()
+
+	self@@out('M=D&M')
 
 	self@@out()
 end
 
 proc asm_gen@@gen_or(_) is
 	self@@out('// or')
-	# TODO
+
+	# set M to first operand and D to second
+	self@@pre_binary_op()
+
+	self@@out('M=D|M')
 
 	self@@out()
 end
