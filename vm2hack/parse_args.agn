@@ -2,12 +2,17 @@
 # if no input file is provided, an error is thrown
 # if no output file is provided, one is assumed (same location and base name as input file)
 # ext is a string with the output file extension to use if no output file is provided (without preceding period)
-# retruns an input and output file name
+# returns an input and output file name
 parse_args := proc(ext :: string) is
 	local path_in := args[1]
 	local path_out := args[2]
+	path_in.list('.vm')
 	if path_in = null then
-		path_in := input('Please enter the name of the VM file to compile: ')
+		path_in := os.dirname(path_in)
+		path_in_vms := path_in.list('*.vm')
+		if path_in_vms = null then
+		##### path_in := input('Please enter the name of the VM file to compile: ')
+		fi
 	fi
 	if path_out = null then
 		local ext := os.suffix(path_in)
@@ -16,5 +21,5 @@ parse_args := proc(ext :: string) is
 		fi
 		path_out := strings.chomp(os.realpath(path_in), ext) & '.asm'
 	fi
-	return [path_in], path_out
+	return [path_in_vms], path_out
 end
