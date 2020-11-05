@@ -1,23 +1,29 @@
 #!agena
 
+# Program that translates VM code into Hack assembly
+# Written by Abraham Murciano and Elad Harizy
+
 run '../lib/input.agn'
 run 'parse_args.agn'
 run 'asm_gen.agn'
 run 'parser.agn'
 
 main := proc() is
-	local fin_name, fout_name := parse_args('asm')
+	local fin_names, fout_name := parse_args('asm')
 	asm_gen@@init(fout_name)
 
 	local i := 1
-	for keys line in io.lines(fin_name) do
-		try
-			parser@@parse_line(line)
-		catch msg then
-			print('Error in "' & fin_name & '" on line ' & i & ' near "' & line & '".')
-			print(msg)
-		yrt
-		i++
+	for fin_name in fin_names do
+		asm_gen@@set_file_name(fin_name)
+		for keys line in io.lines(fin_name) do
+			try
+				parser@@parse_line(line)
+			catch msg then
+				print('Error in "' & fin_name & '" on line ' & i & ' near "' & line & '".')
+				print(msg)
+			yrt
+			i++
+		od
 	od
 
 	asm_gen@@destruct()
