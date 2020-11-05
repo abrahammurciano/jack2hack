@@ -10,12 +10,11 @@ parse_args := proc(ext :: string) is
 		path_in := input('Please enter the name of the VM file to compile: ')
 	fi
 	if path_out = null then
-		local index, _ := strings.find(path_in, "[^/]*$")
-		local dir := if index > 1 then path_in[1 to index - 1] else '' fi
-		local file := path_in[index to -1]
-		index := strings.find(file, "%.[^.]*$", 2)
-		local file_base := if index then file[1 to index - 1] else file fi
-		path_out := dir & file_base & '.' & ext
+		local ext := os.suffix(path_in)
+		if ext = os.filename(path_in) then
+			ext = ''
+		fi
+		path_out := strings.chomp(os.realpath(path_in), ext) & '.asm'
 	fi
-	return path_in, path_out
+	return [path_in], path_out
 end
