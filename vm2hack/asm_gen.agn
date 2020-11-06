@@ -11,18 +11,21 @@ asm_gen := [
 	label_maker = new_label_maker()
 ]
 
-proc asm_gen@@out(str) is
-	str := if str then str else '' fi
-	io.writeline(self.fout, str)
-end
-
-proc asm_gen@@init(fout_name) is
-	self.fout := io.open(fout_name, 'w')
-	self.file_base_name := (pop(fout_name split '/') split '.asm')[1]
+proc asm_gen@@init(fout_path) is
+	self.fout := io.open(fout_path, 'w')
 end
 
 proc asm_gen@@destruct(_) is
 	io.close(self.fout)
+end
+
+proc asm_gen@@set_file_name(fin_path) is
+	self.file_base_name := file_base_name(fin_path)
+end
+
+proc asm_gen@@out(str) is
+	str := if str then str else '' fi
+	io.writeline(self.fout, str)
 end
 
 proc asm_gen@@get_seg_ptr_addr(segment) is

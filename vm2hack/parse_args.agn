@@ -3,23 +3,27 @@
 # if no output file is provided, one is assumed (same location and base name as input file)
 # ext is a string with the output file extension to use if no output file is provided (without preceding period)
 # returns an input and output file name
-parse_args := proc(ext :: string) is
-	local path_in := args[1]
+parse_args := proc() is
+	local path_in := os.realpath(args[1])
 	local path_out := args[2]
-	path_in.list('.vm')
-	if path_in = null then
-		path_in := os.dirname(path_in)
-		path_in_vms := path_in.list('*.vm')
-		if path_in_vms = null then
-		##### path_in := input('Please enter the name of the VM file to compile: ')
-		fi
+
+	if path_in = fail then
+		error('File or directory "' & path_in & '" not found.')
 	fi
-	if path_out = null then
-		local ext := os.suffix(path_in)
-		if ext = os.filename(path_in) then
-			ext = ''
+
+	# if path_in refers to a file, then we must make a matching asm file
+	if os.isfile(path_in) then
+		if path_out = null then
+			path_out := os.dirname(path_in) & '/' & file_base_name(path_in) & '.asm'
+		elif os.isdir(path_out) then
+			path_out := os.realpath(path_out) & '/' & file_base_name(path_in) & '.asm'
 		fi
-		path_out := strings.chomp(os.realpath(path_in), ext) & '.asm'
+		return [path_in], path_out
 	fi
-	return [path_in_vms], path_out
+
+	# otherwise it must be a directory, in which case we make an asm file for all the vm files inside
+	local paths := os.list(path_in, '*.vm')
+	#if path_out = null then
+	#	path_out := path_in & '/' & # TODO: get name of last folder in path_in
+	#fi
 end

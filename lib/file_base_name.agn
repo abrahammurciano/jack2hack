@@ -1,0 +1,8 @@
+file_base_name := proc(path) is
+	local ext := '.' & os.suffix(path)
+	local file_name := os.filename(path)
+	if file_name = null then
+		return fail
+	fi
+	return if ext = file_name then file_name else strings.chomp(file_name, ext) fi
+end

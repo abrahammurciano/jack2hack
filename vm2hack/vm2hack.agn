@@ -3,6 +3,7 @@
 # Program that translates VM code into Hack assembly
 # Written by Abraham Murciano and Elad Harizy
 
+run '../lib/file_base_name.agn'
 run '../lib/input.agn'
 run 'parse_args.agn'
 run 'asm_gen.agn'
@@ -10,10 +11,21 @@ run 'parser.agn'
 
 main := proc() is
 	local fin_names, fout_name := parse_args('asm')
-	asm_gen@@init(fout_name)
+	try
+		asm_gen@@init(fout_name)
+		io.writeline('Generating assembly to file "' & fout_name & '".')
+	catch msg then
+		print('Error: Could not create or open output file "' & fout_name & '".')
+		local dirname := os.dirname(fout_name)
+		if not os.isdir(dirname) then
+			print('Directory "' & dirname & '" does not exist.')
+		fi
+		return
+	yrt
 
 	local i := 1
 	for fin_name in fin_names do
+		print('Compiling file "' & fin_name & '"... ')
 		asm_gen@@set_file_name(fin_name)
 		for keys line in io.lines(fin_name) do
 			try
@@ -24,6 +36,8 @@ main := proc() is
 			yrt
 			i++
 		od
+
+		print('done')
 	od
 
 	asm_gen@@destruct()
