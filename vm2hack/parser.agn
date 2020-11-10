@@ -14,7 +14,8 @@ new_parser := proc() is
 			'pop' ~ << (segment, i) -> asm_gen@@gen_pop(segment, i) >>,
 			'push' ~ << (segment, i) -> asm_gen@@gen_push(segment, i) >>,
 			'label' ~ << (label) -> asm_gen@@gen_label(label) >>,
-			'goto' ~ << (label) -> asm_gen@@gen_goto(label) >>
+			'goto' ~ << (label) -> asm_gen@@gen_goto(label) >>,
+			'if-goto' ~ << (label) -> asm_gen@@gen_if_goto(label) >>
 		],
 		commands = [
 			no_args = [

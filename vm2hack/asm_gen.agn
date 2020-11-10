@@ -385,3 +385,9 @@ proc asm_gen@@gen_goto(label) is
 
 	self@@out()
 end
+
+proc asm_gen@@gen_if_goto(label) is
+	self@@pop_d_register()
+	self@@out('@' & self.file_base_name & '.' & label)
+	self@@out('D;JNE')
+end
