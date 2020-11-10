@@ -1,7 +1,20 @@
 new_parser := proc() is
 
 	local parser := [
-		'command_table' ~ [],
+		'command_table' ~ [
+			'add' ~ << () -> asm_gen@@gen_add() >>,
+			'sub' ~ << () -> asm_gen@@gen_sub() >>,
+			'neg' ~ << () -> asm_gen@@gen_neg() >>,
+			'eq' ~ << () -> asm_gen@@gen_eq() >>,
+			'gt' ~ << () -> asm_gen@@gen_gt() >>,
+			'lt' ~ << () -> asm_gen@@gen_lt() >>,
+			'and' ~ << () -> asm_gen@@gen_and() >>,
+			'or' ~ << () -> asm_gen@@gen_or() >>,
+			'not' ~ << () -> asm_gen@@gen_not() >>,
+			'pop' ~ << (segment, i) -> asm_gen@@gen_pop(segment, i) >>,
+			'push' ~ << (segment, i) -> asm_gen@@gen_push(segment, i) >>,
+			'label' ~ << (label) -> asm_gen@@gen_label >>
+		],
 		'commands' ~ [
 			'no_args' ~ [
 				'add',
@@ -57,6 +70,14 @@ new_parser := proc() is
 	end
 
 	proc parser@@validate_two_arg_command(command, arg1, arg2) is
+		try
+			arg2 := tonumber(arg2)
+			if arg2 < 0 then
+				error()
+			fi
+		catch
+			error('Second argument "' & arg2 & '" must be a non negative integer.')
+		yrt
 		if not command in self.commands.two_arg then
 			error('Command "' & command & '" (with two arguments) is invalid.')
 		fi
@@ -114,14 +135,6 @@ new_parser := proc() is
 		fi
 
 		local arg1, arg2 := strings.cut(args, ' ')
-		try
-			arg2 := tonumber(arg2)
-			if arg2 < 0 then
-				error()
-			fi
-		catch
-			error('Second argument "' & arg2 & '" must be a non negative integer.')
-		yrt
 
 		if not arg2 then
 			self@@validate_one_arg_command(command, arg1)
@@ -131,19 +144,6 @@ new_parser := proc() is
 			self.command_table[command](arg1, arg2)
 		fi
 	end
-
-	parser.command_table['add'] := << () -> asm_gen@@gen_add() >>
-	parser.command_table['sub'] := << () -> asm_gen@@gen_sub() >>
-	parser.command_table['neg'] := << () -> asm_gen@@gen_neg() >>
-	parser.command_table['eq'] := << () -> asm_gen@@gen_eq() >>
-	parser.command_table['gt'] := << () -> asm_gen@@gen_gt() >>
-	parser.command_table['lt'] := << () -> asm_gen@@gen_lt() >>
-	parser.command_table['and'] := << () -> asm_gen@@gen_and() >>
-	parser.command_table['or'] := << () -> asm_gen@@gen_or() >>
-	parser.command_table['not'] := << () -> asm_gen@@gen_not() >>
-
-	parser.command_table['pop'] := << (segment, i) -> asm_gen@@gen_pop(segment, i) >>
-	parser.command_table['push'] := << (segment, i) -> asm_gen@@gen_push(segment, i) >>
 
 	return parser
 end
