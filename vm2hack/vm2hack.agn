@@ -27,6 +27,7 @@ main := proc() is
 	for fin_name in fin_names do
 		print('Compiling file "' & fin_name & '"... ')
 		asm_gen@@set_file_name(fin_name)
+		local parser := new_parser()
 		for keys line in io.lines(fin_name) do
 			try
 				parser@@parse_line(line)

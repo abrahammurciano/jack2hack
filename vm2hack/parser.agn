@@ -1,112 +1,149 @@
-parser := [
-	'command_table' ~ [],
-	'commands' ~ [
-		'no_args' ~ [
-			'add',
-			'sub',
-			'neg',
-			'eq',
-			'gt',
-			'lt,',
-			'and',
-			'or',
-			'not',
-			'return'
+new_parser := proc() is
+
+	local parser := [
+		'command_table' ~ [],
+		'commands' ~ [
+			'no_args' ~ [
+				'add',
+				'sub',
+				'neg',
+				'eq',
+				'gt',
+				'lt,',
+				'and',
+				'or',
+				'not',
+				'return'
+			],
+			'one_arg' ~ [
+				'label',
+				'goto',
+				'if-goto'
+			],
+			'two_arg' ~ [
+				'pop',
+				'push',
+				'function',
+				'call'
+			],
+			'memory' ~ [
+				'pop',
+				'push'
+			]
 		],
-		'one_arg' ~ [
-			'label',
-			'goto',
-			'if-goto'
+		'segments' ~ [
+			'local',
+			'argument',
+			'this',
+			'that',
+			'constant',
+			'static',
+			'temp',
+			'pointer'
 		],
-		'two_arg' ~ [
-			'pop',
-			'push',
-			'function',
-			'call'
-		],
-		'memory' ~ [
-			'pop',
-			'push'
-		]
-	],
-	'segments' ~ [
-		'local',
-		'argument',
-		'this',
-		'that',
-		'constant',
-		'static',
-		'temp',
-		'pointer'
+		'multi_line_comment_mode' ~ false
 	]
-]
 
-proc parser@@validate_no_args_command(command) is
-	if not command in self.commands.no_args then
-		error('Command "' & command & '" (with no arguments) is invalid.')
-	fi
-end
-
-proc parser@@validate_one_arg_command(command, arg1) is
-	if not command in self.commands.one_arg then
-		error('Command "' & command & '" (with one argument) is invalid.')
-	fi
-end
-
-proc parser@@validate_two_arg_command(command, arg1, arg2) is
-	if not command in self.commands.two_arg then
-		error('Command "' & command & '" (with two arguments) is invalid.')
-	fi
-	if command in self.commands.memory and not arg1 in self.segments then
-		error('Command "' & command & '" expected a segment name following it, received "' & arg1 & '".')
-	fi
-	if command = 'pop' and arg1 = 'constant' then
-		error('Cannot pop to "constant" segment.')
-	fi
-end
-
-proc parser@@parse_line(line) is
-	line := trim(replace(line, '\t', ' '))
-
-	if line = '' or line[1 to 2] = '//' then
-		return
-	fi
-
-	local command, args := strings.cut(line, ' ')	# splits line on first space
-	if not args then
-		self@@validate_no_args_command(command)
-		self.command_table[command]()
-		return
-	fi
-
-	local arg1, arg2 := strings.cut(args, ' ')
-	try
-		arg2 := tonumber(arg2)
-		if arg2 < 0 then
-			error()
+	proc parser@@validate_no_args_command(command) is
+		if not command in self.commands.no_args then
+			error('Command "' & command & '" (with no arguments) is invalid.')
 		fi
-	catch
-		error('Second argument "' & arg2 & '" must be a non negative integer.')
-	yrt
+	end
 
-	if not arg2 then
-		self@@validate_one_arg_command(command, arg1)
-		self.command_table[command](arg1)
-	else
-		self@@validate_two_arg_command(command, arg1, arg2)
-		self.command_table[command](arg1, arg2)
-	fi
+	proc parser@@validate_one_arg_command(command, arg1) is
+		if not command in self.commands.one_arg then
+			error('Command "' & command & '" (with one argument) is invalid.')
+		fi
+	end
+
+	proc parser@@validate_two_arg_command(command, arg1, arg2) is
+		if not command in self.commands.two_arg then
+			error('Command "' & command & '" (with two arguments) is invalid.')
+		fi
+		if command in self.commands.memory and not arg1 in self.segments then
+			error('Command "' & command & '" expected a segment name following it, received "' & arg1 & '".')
+		fi
+		if command = 'pop' and arg1 = 'constant' then
+			error('Cannot pop to "constant" segment.')
+		fi
+	end
+
+	proc parser@@strip_comments(line) is
+		if self.multi_line_comment_mode then
+			local comment_end := '*/' in line
+			if comment_end and comment_end < size(line) - 1 then
+				line := line[comment_end + 2 to -1]
+				self.multi_line_comment_mode := false
+			else
+				return ''
+			fi
+		fi
+
+		# remove single line comments starting with #
+		line := strings.chomp(line, '#.*')
+
+		# remove single line comments starting with //
+		line := strings.chomp(line, '//.*')
+
+		# remove single line comments wrapped in /* ... */
+		for comment in strings.gmatches(line, '/%*.-%*/') do
+			line := replace(line, comment, ' ')
+		od
+
+		# check for the start of a multi line comment starting with /*
+		local comment := strings.match(line, '/%*.*$')
+		if comment then
+			line := replace(line, comment, '')
+			self.multi_line_comment_mode := true
+		fi
+		return line
+	end
+
+	proc parser@@parse_line(line) is
+		line := trim(self@@strip_comments(replace(line, '\t', ' ')))
+
+		if line = '' then
+			return
+		fi
+
+		local command, args := strings.cut(line, ' ')	# splits line on first space
+		if not args then
+			self@@validate_no_args_command(command)
+			self.command_table[command]()
+			return
+		fi
+
+		local arg1, arg2 := strings.cut(args, ' ')
+		try
+			arg2 := tonumber(arg2)
+			if arg2 < 0 then
+				error()
+			fi
+		catch
+			error('Second argument "' & arg2 & '" must be a non negative integer.')
+		yrt
+
+		if not arg2 then
+			self@@validate_one_arg_command(command, arg1)
+			self.command_table[command](arg1)
+		else
+			self@@validate_two_arg_command(command, arg1, arg2)
+			self.command_table[command](arg1, arg2)
+		fi
+	end
+
+	parser.command_table['add'] := << () -> asm_gen@@gen_add() >>
+	parser.command_table['sub'] := << () -> asm_gen@@gen_sub() >>
+	parser.command_table['neg'] := << () -> asm_gen@@gen_neg() >>
+	parser.command_table['eq'] := << () -> asm_gen@@gen_eq() >>
+	parser.command_table['gt'] := << () -> asm_gen@@gen_gt() >>
+	parser.command_table['lt'] := << () -> asm_gen@@gen_lt() >>
+	parser.command_table['and'] := << () -> asm_gen@@gen_and() >>
+	parser.command_table['or'] := << () -> asm_gen@@gen_or() >>
+	parser.command_table['not'] := << () -> asm_gen@@gen_not() >>
+
+	parser.command_table['pop'] := << (segment, i) -> asm_gen@@gen_pop(segment, i) >>
+	parser.command_table['push'] := << (segment, i) -> asm_gen@@gen_push(segment, i) >>
+
+	return parser
 end
-
-parser.command_table['add'] := << () -> asm_gen@@gen_add() >>
-parser.command_table['sub'] := << () -> asm_gen@@gen_sub() >>
-parser.command_table['neg'] := << () -> asm_gen@@gen_neg() >>
-parser.command_table['eq'] := << () -> asm_gen@@gen_eq() >>
-parser.command_table['gt'] := << () -> asm_gen@@gen_gt() >>
-parser.command_table['lt'] := << () -> asm_gen@@gen_lt() >>
-parser.command_table['and'] := << () -> asm_gen@@gen_and() >>
-parser.command_table['or'] := << () -> asm_gen@@gen_or() >>
-parser.command_table['not'] := << () -> asm_gen@@gen_not() >>
-
-parser.command_table['pop'] := << (segment, i) -> asm_gen@@gen_pop(segment, i) >>
-parser.command_table['push'] := << (segment, i) -> asm_gen@@gen_push(segment, i) >>

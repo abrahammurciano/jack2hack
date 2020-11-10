@@ -1,3 +1,4 @@
 playground.agn
 *.pdf
-**/test.*
+*.vm
+*.asm
