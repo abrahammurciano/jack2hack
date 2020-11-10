@@ -4,7 +4,7 @@
 # ext is a string with the output file extension to use if no output file is provided (without preceding period)
 # returns an input and output file name
 parse_args := proc() is
-	local path_in := os.realpath(args[1])
+	local path_in := os.realpath(args[1] or '.')
 	local path_out := args[2]
 
 	if path_in = fail then
@@ -23,7 +23,8 @@ parse_args := proc() is
 
 	# otherwise it must be a directory, in which case we make an asm file for all the vm files inside
 	local paths := os.list(path_in, '*.vm')
-	#if path_out = null then
-	#	path_out := path_in & '/' & # TODO: get name of last folder in path_in
-	#fi
+	if path_out = null then
+		path_out := path_in & '/' & (path_in split '/')[-1] & '.asm'
+	fi
+	return paths, path_out
 end
