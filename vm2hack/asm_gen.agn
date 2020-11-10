@@ -75,14 +75,19 @@ proc asm_gen@@gen_pop(segment, i) is
 	self@@out()
 end
 
-# function that produces assembly to put contents of D register onto stack (overwrites A register)
-proc asm_gen@@push_d_register(_) is
+# function that produces assembly to put the result of some computation onto stack (overwrites A register)
+# comp must be the comp part of the C-instruction, but cannot mention A or M since A is changed by the function
+proc asm_gen@@push_comp(comp) is
+	if not comp in {0, 1, -1, 'D', '!D', '-D', 'D+1', 'D-1'} then
+		error('The provided computation "' & comp & '" is invalid because it produces the command "M=' & comp & '".')
+	fi
+
 	# load SP into A register
 	self@@out('@SP')
 	self@@out('A=M')
 
 	# store i (now in D register) into RAM[SP]
-	self@@out('M=D')
+	self@@out('M=' & comp)
 
 	# increment stack pointer
 	self@@out('@SP')
@@ -117,13 +122,13 @@ proc asm_gen@@push_latt(ptr_addr, i) is
 	# dereference calculated address
 	self@@out('D=M')
 
-	self@@push_d_register()
+	self@@push_comp('D')
 end
 
 # pop local, argument, this, or that
 # ptr_addr can be any of {'LCL', 'ARG', 'THIS', 'THAT'}
 proc asm_gen@@pop_latt(ptr_addr, i) is
-	if not ptr_addr in ['LCL', 'ARG', 'THIS', 'THAT'] then
+	if not ptr_addr in {'LCL', 'ARG', 'THIS', 'THAT'} then
 		error('Parameter ptr_addr must be one of "LCL", "ARG", "THIS", or "THAT". Received "' & ptr_addr & '".')
 	fi
 
@@ -152,17 +157,21 @@ proc asm_gen@@pop_latt(ptr_addr, i) is
 end
 
 proc asm_gen@@push_constant(i) is
-	# load i into D register
-	self@@out('@' & i)
-	self@@out('D=A')
+	if i in {0, 1} then
+		self@@push_comp(i)
+	else
+		# load i into D register
+		self@@out('@' & i)
+		self@@out('D=A')
 
-	self@@push_d_register()
+		self@@push_comp('D')
+	fi
 end
 
 proc asm_gen@@push_static(i) is
 	self@@out('@' & self.file_base_name & '.' & i)
 	self@@out('D=M')
-	self@@push_d_register()
+	self@@push_comp('D')
 end
 
 proc asm_gen@@pop_static(i) is
@@ -182,7 +191,7 @@ proc asm_gen@@push_temp(i) is
 	# load contents of base plus offset in D register
 	self@@out('D=M')
 
-	self@@push_d_register()
+	self@@push_comp('D')
 end
 
 proc asm_gen@@pop_temp(i) is
@@ -206,7 +215,7 @@ proc asm_gen@@push_pointer(i) is
 	self@@out('@' & 3 + i)
 	self@@out('D=M')
 
-	self@@push_d_register()
+	self@@push_comp('D')
 end
 
 proc asm_gen@@pop_pointer(i) is
@@ -274,7 +283,7 @@ end
 # produces assembly for the VM commands eq, gt, and lt
 proc asm_gen@@compare(command) is
 	command := lower(command)
-	if not command in ['eq', 'gt', 'lt'] then
+	if not command in {'eq', 'gt', 'lt'} then
 		error('Command ' & command & ' is not a comparison command.')
 	fi
 
@@ -364,6 +373,15 @@ proc asm_gen@@gen_label(label) is
 	self@@out('// label ' & label)
 
 	self@@out('(' & self.file_base_name & '.' & label & ')')
+
+	self@@out()
+end
+
+proc asm_gen@@gen_goto(label) is
+	self@@out('// goto ' & label)
+
+	self@@out('@' & self.file_base_name & '.' & label)
+	self@@out('0;JMP')
 
 	self@@out()
 end

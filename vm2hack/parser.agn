@@ -13,7 +13,8 @@ new_parser := proc() is
 			'not' ~ << () -> asm_gen@@gen_not() >>,
 			'pop' ~ << (segment, i) -> asm_gen@@gen_pop(segment, i) >>,
 			'push' ~ << (segment, i) -> asm_gen@@gen_push(segment, i) >>,
-			'label' ~ << (label) -> asm_gen@@gen_label(label) >>
+			'label' ~ << (label) -> asm_gen@@gen_label(label) >>,
+			'goto' ~ << (label) -> asm_gen@@gen_goto(label) >>
 		],
 		commands = [
 			no_args = [
@@ -61,12 +62,14 @@ new_parser := proc() is
 		if not command in self.commands.no_args then
 			error('Command "' & command & '" (with no arguments) is invalid.')
 		fi
+		return command
 	end
 
 	proc parser@@validate_one_arg_command(command, arg1) is
 		if not command in self.commands.one_arg then
 			error('Command "' & command & '" (with one argument) is invalid.')
 		fi
+		return command, arg1
 	end
 
 	proc parser@@validate_two_arg_command(command, arg1, arg2) is
@@ -87,6 +90,7 @@ new_parser := proc() is
 		if command = 'pop' and arg1 = 'constant' then
 			error('Cannot pop to "constant" segment.')
 		fi
+		return command, arg1, arg2
 	end
 
 	proc parser@@strip_comments(line) is
@@ -129,7 +133,7 @@ new_parser := proc() is
 
 		local command, args := strings.cut(line, ' ')	# splits line on first space
 		if not args then
-			self@@validate_no_args_command(command)
+			command := self@@validate_no_args_command(command)
 			self.command_table[command]()
 			return
 		fi
@@ -137,10 +141,10 @@ new_parser := proc() is
 		local arg1, arg2 := strings.cut(args, ' ')
 
 		if not arg2 then
-			self@@validate_one_arg_command(command, arg1)
+			command, arg1 := self@@validate_one_arg_command(command, arg1)
 			self.command_table[command](arg1)
 		else
-			self@@validate_two_arg_command(command, arg1, arg2)
+			command, arg1, arg2 := self@@validate_two_arg_command(command, arg1, arg2)
 			self.command_table[command](arg1, arg2)
 		fi
 	end
