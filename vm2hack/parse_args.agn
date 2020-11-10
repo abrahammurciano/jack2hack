@@ -1,30 +1,34 @@
-# function that reads args for an input file and optionally an output file
-# if no input file is provided, an error is thrown
-# if no output file is provided, one is assumed (same location and base name as input file)
-# ext is a string with the output file extension to use if no output file is provided (without preceding period)
-# returns an input and output file name
-parse_args := proc() is
-	local path_in := os.realpath(args[1] or '.')
-	local path_out := args[2]
+if not parse_args then
 
-	if path_in = fail then
-		error('File or directory "' & path_in & '" not found.')
-	fi
+	# function that reads args for an input file and optionally an output file
+	# if no input file is provided, an error is thrown
+	# if no output file is provided, one is assumed (same location and base name as input file)
+	# ext is a string with the output file extension to use if no output file is provided (without preceding period)
+	# returns an input and output file name
+	parse_args := proc() is
+		local path_in := os.realpath(args[1] or '.')
+		local path_out := args[2]
 
-	# if path_in refers to a file, then we must make a matching asm file
-	if os.isfile(path_in) then
-		if path_out = null then
-			path_out := os.dirname(path_in) & '/' & file_base_name(path_in) & '.asm'
-		elif os.isdir(path_out) then
-			path_out := os.realpath(path_out) & '/' & file_base_name(path_in) & '.asm'
+		if path_in = fail then
+			error('File or directory "' & path_in & '" not found.')
 		fi
-		return [path_in], path_out
-	fi
 
-	# otherwise it must be a directory, in which case we make an asm file for all the vm files inside
-	local paths := os.list(path_in, '*.vm')
-	if path_out = null then
-		path_out := path_in & '/' & (path_in split '/')[-1] & '.asm'
-	fi
-	return paths, path_out
-end
+		# if path_in refers to a file, then we must make a matching asm file
+		if os.isfile(path_in) then
+			if path_out = null then
+				path_out := os.dirname(path_in) & '/' & file_base_name(path_in) & '.asm'
+			elif os.isdir(path_out) then
+				path_out := os.realpath(path_out) & '/' & file_base_name(path_in) & '.asm'
+			fi
+			return [path_in], path_out
+		fi
+
+		# otherwise it must be a directory, in which case we make an asm file for all the vm files inside
+		local paths := os.list(path_in, '*.vm')
+		if path_out = null then
+			path_out := path_in & '/' & (path_in split '/')[-1] & '.asm'
+		fi
+		return paths, path_out
+	end
+
+fi

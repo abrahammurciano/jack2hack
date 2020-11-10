@@ -1,12 +1,16 @@
-new_label_maker := proc() is
-	local label_maker := [
-		counter = 0,
-		prefix = 'LABEL'
-	]
+if not new_label_maker then
 
-	proc label_maker@@make_label(_) is
-		return self.prefix & self.counter++
+	new_label_maker := proc() is
+		local label_maker := [
+			counter = 0,
+			prefix = 'LABEL'
+		]
+
+		proc label_maker@@make_label(prefix) is
+			return (prefix or self.prefix) & '_' & self.counter++
+		end
+
+		return label_maker
 	end
 
-	return label_maker
-end
+fi

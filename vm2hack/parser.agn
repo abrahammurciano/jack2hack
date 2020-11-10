@@ -1,7 +1,7 @@
 new_parser := proc() is
 
 	local parser := [
-		'command_table' ~ [
+		command_table = [
 			'add' ~ << () -> asm_gen@@gen_add() >>,
 			'sub' ~ << () -> asm_gen@@gen_sub() >>,
 			'neg' ~ << () -> asm_gen@@gen_neg() >>,
@@ -13,10 +13,10 @@ new_parser := proc() is
 			'not' ~ << () -> asm_gen@@gen_not() >>,
 			'pop' ~ << (segment, i) -> asm_gen@@gen_pop(segment, i) >>,
 			'push' ~ << (segment, i) -> asm_gen@@gen_push(segment, i) >>,
-			'label' ~ << (label) -> asm_gen@@gen_label >>
+			'label' ~ << (label) -> asm_gen@@gen_label(label) >>
 		],
-		'commands' ~ [
-			'no_args' ~ [
+		commands = [
+			no_args = [
 				'add',
 				'sub',
 				'neg',
@@ -28,23 +28,23 @@ new_parser := proc() is
 				'not',
 				'return'
 			],
-			'one_arg' ~ [
+			one_arg = [
 				'label',
 				'goto',
 				'if-goto'
 			],
-			'two_arg' ~ [
+			two_arg = [
 				'pop',
 				'push',
 				'function',
 				'call'
 			],
-			'memory' ~ [
+			memory = [
 				'pop',
 				'push'
 			]
 		],
-		'segments' ~ [
+		segments = [
 			'local',
 			'argument',
 			'this',
@@ -54,7 +54,7 @@ new_parser := proc() is
 			'temp',
 			'pointer'
 		],
-		'multi_line_comment_mode' ~ false
+		multi_line_comment_mode = false
 	]
 
 	proc parser@@validate_no_args_command(command) is

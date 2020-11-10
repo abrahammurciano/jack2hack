@@ -1,3 +1,4 @@
+run '../lib/file_base_name.agn'
 run 'label_maker.agn'
 
 asm_gen := [
@@ -8,7 +9,8 @@ asm_gen := [
 		'that' ~ 'THAT'
 	],
 	stack = 256,
-	label_maker = new_label_maker()
+	label_maker = new_label_maker(),
+	file_base_name = null
 ]
 
 proc asm_gen@@init(fout_path) is
@@ -21,6 +23,7 @@ end
 
 proc asm_gen@@set_file_name(fin_path) is
 	self.file_base_name := file_base_name(fin_path)
+	self@@out('// Start of file "' & fin_path & '"\n')
 end
 
 proc asm_gen@@out(str) is
@@ -270,11 +273,12 @@ end
 
 # produces assembly for the VM commands eq, gt, and lt
 proc asm_gen@@compare(command) is
-	if not lower(command) in ['eq', 'gt', 'lt'] then
+	command := lower(command)
+	if not command in ['eq', 'gt', 'lt'] then
 		error('Command ' & command & ' is not a comparison command.')
 	fi
 
-	self@@out('// ' & lower(command))
+	self@@out('// ' & command)
 
 	# set M to first operand and D to second
 	self@@pre_binary_op()
@@ -282,11 +286,11 @@ proc asm_gen@@compare(command) is
 	# subtract second operand from first
 	self@@out('D=M-D')
 
-	local label_eq := self.label_maker@@make_label()
-	local label_end := self.label_maker@@make_label()
+	local label_success := self.label_maker@@make_label('if_' & command)
+	local label_end := self.label_maker@@make_label('end')
 
-	# if D equals 0 (i.e. if values are equal), jump to label_eq
-	self@@out('@' & label_eq)
+	# if D equals 0 (i.e. if values are equal), jump to label_success
+	self@@out('@' & label_success)
 	self@@out('D;J' & upper(command))
 
 	# if values are not equal, replace top of stack with 0
@@ -297,8 +301,8 @@ proc asm_gen@@compare(command) is
 	self@@out('@' & label_end)
 	self@@out('0;JMP')
 
-	# define label_eq
-	self@@out('(' & label_eq & ')')
+	# define label_success
+	self@@out('(' & label_success & ')')
 
 	# replace top of stack with TRUE
 	self@@point_to_stack_top()
@@ -353,6 +357,13 @@ proc asm_gen@@gen_not(_) is
 	# ! inverts all bits
 	self@@out('M=!M')
 
+	self@@out()
+end
+
+proc asm_gen@@gen_label(label) is
+	self@@out('// label ' & label)
+
+	self@@out('(' & self.file_base_name & '.' & label & ')')
 
 	self@@out()
 end
