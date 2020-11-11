@@ -406,10 +406,93 @@ proc asm_gen@@gen_call(func, n_args) is
 	self@@out('D=A')
 	self@@push_comp('D')
 
-	self@@out('@' & func & '_' & n_args)
+	# push argument pointer onto stack
+	self@@load_ram('ARG')
+	self@@push_comp('D')
+
+	# ARG = SP - (n_args + 2)
+	self@@out('@SP')
+	self@@out('D=M')
+	self@@out('@' & n_args + 2)
+	self@@out('D=D-A')
+	self@@out('@ARG')
+	self@@out('M=D')
+
+	# go to function code
+	self@@out('@' & func)
 	self@@out('0;JMP')
 
+	# make a label for return address
 	self@@out('(' & return_address & ')')
+
+	self@@out()
+end
+
+# load contents of RAM[i] into D register
+proc asm_gen@@load_ram(i) is
+	self@@out('@' & i)
+	self@@out('D=M')
+end
+
+proc asm_gen@@gen_function(func, n_vars) is
+	self@@out('// function ' & func & ' ' & n_vars)
+
+	# save the four segment pointers (except args which call did) on the stack
+	for i in ['LCL', 'THIS', 'THAT'] do
+		self@@load_ram(i)
+		self@@push_comp('D')
+	od
+
+	# LCL = SP
+	self@@out('@SP')
+	self@@out('D=M')
+	self@@out('@LCL')
+	self@@out('M=D')
+
+	# SP += n_vars
+	if n_vars <= 1 then
+		self@@out('D=' & n_vars)
+	else
+		self@@out('@' & n_vars)
+		self@@out('D=A')
+	fi
+	self@@out('@SP')
+	self@@out('M=D+M')
+
+	self@@out()
+end
+
+# restore into segment_addr the value at RAM[*LCL - offset]
+prod asm_gen@@restore(segment_addr, offset) is
+	# put *LCL - offset into D register
+	self@@out('@LCL')
+	if offset = 1 then
+		self@@out('A=M-1')
+	else
+		self@@out('D=M')
+		self@@out('@' & offset)
+		self@@out('A=D-A')
+	fi
+	self@@out('D=M')
+
+	# make segment point to value in D register
+	self@@out('@' & segment_addr)
+	self@@out('M=D')
+end
+
+proc asm_gen@@gen_return(_) is
+	self@@out('// return')
+
+	# pop into RAM[*ARG]
+	# TODO
+
+	# SP = ARG
+	# TODO
+
+	# restore local, argument, this, that
+	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'LCL':3] do
+		self@@restore(x[1], x[2])
+	od
 
 	self@@out()
 end
