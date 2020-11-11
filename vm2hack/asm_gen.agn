@@ -387,7 +387,29 @@ proc asm_gen@@gen_goto(label) is
 end
 
 proc asm_gen@@gen_if_goto(label) is
+	self@@out('// if-goto ' & label)
+
 	self@@pop_d_register()
 	self@@out('@' & self.file_base_name & '.' & label)
 	self@@out('D;JNE')
+
+	self@@out()
+end
+
+proc asm_gen@@gen_call(func, n_args) is
+	self@@out('// call ' & func & ' ' & n_args)
+
+	local return_address = self.label_maker@@make_label('RETURN_ADDRESS')
+
+	# push return address onto stack
+	self@@out('@' & return_address)
+	self@@out('D=A')
+	self@@push_comp('D')
+
+	self@@out('@' & func & '_' & n_args)
+	self@@out('0;JMP')
+
+	self@@out('(' & return_address & ')')
+
+	self@@out()
 end
