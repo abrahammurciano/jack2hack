@@ -399,7 +399,7 @@ end
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
-	local return_address = self.label_maker@@make_label('RETURN_ADDRESS')
+	local return_address := self.label_maker@@make_label('RETURN_ADDRESS')
 
 	# push return address onto stack
 	self@@out('@' & return_address)
@@ -407,7 +407,7 @@ proc asm_gen@@gen_call(func, n_args) is
 	self@@push_comp('D')
 
 	# push argument pointer onto stack
-	self@@load_ram('ARG')
+	self@@load_word('ARG')
 	self@@push_comp('D')
 
 	# ARG = SP - (n_args + 2)
@@ -429,9 +429,15 @@ proc asm_gen@@gen_call(func, n_args) is
 end
 
 # load contents of RAM[i] into D register
-proc asm_gen@@load_ram(i) is
+proc asm_gen@@load_word(i) is
 	self@@out('@' & i)
 	self@@out('D=M')
+end
+
+# store contents of D register into RAM[i]
+proc asm_gen@@store_word(i) is
+	self@@out('@' & i)
+	self@@out('M=D')
 end
 
 proc asm_gen@@gen_function(func, n_vars) is
@@ -439,7 +445,7 @@ proc asm_gen@@gen_function(func, n_vars) is
 
 	# save the four segment pointers (except args which call did) on the stack
 	for i in ['LCL', 'THIS', 'THAT'] do
-		self@@load_ram(i)
+		self@@load_word(i)
 		self@@push_comp('D')
 	od
 
@@ -463,7 +469,7 @@ proc asm_gen@@gen_function(func, n_vars) is
 end
 
 # restore into segment_addr the value at RAM[*LCL - offset]
-prod asm_gen@@restore(segment_addr, offset) is
+proc asm_gen@@restore(segment_addr, offset) is
 	# put *LCL - offset into D register
 	self@@out('@LCL')
 	if offset = 1 then
@@ -480,16 +486,25 @@ prod asm_gen@@restore(segment_addr, offset) is
 	self@@out('M=D')
 end
 
+# produces assembly to copy word from RAM[source] to RAM[destination]
+proc asm_gen@@copy_word(source, destination) is
+	self@@load_word(source)
+	self@@store_word(destination)
+end
+
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
 
-	# pop into RAM[*ARG]
-	# TODO
+	# pop return value into RAM[*ARG]
+	self@@pop_d_register()
+	self@@out('@ARG')
+	self@@out('A=M')
+	self@@out('M=D')
 
 	# SP = ARG
-	# TODO
+	self@@copy_word('ARG', 'SP')
 
-	# restore local, argument, this, that
+	# restore local, argument, this, that (local must be last)
 	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'LCL':3] do
 		self@@restore(x[1], x[2])
 	od
