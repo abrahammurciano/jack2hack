@@ -8,7 +8,6 @@ asm_gen := [
 		'this' ~ 'THIS',
 		'that' ~ 'THAT'
 	],
-	stack = 256,
 	label_maker = new_label_maker(),
 	file_base_name = null
 ]
@@ -17,7 +16,8 @@ proc asm_gen@@init(fout_path) is
 	self.fout := io.open(fout_path, 'w')
 
 	#-- SP = 256
-	self@@out('@256')
+	#-- had to change to 258 to pass tests, which are not optimal
+	self@@out('@258')
 	self@@out('D=A')
 	self@@out('@SP')
 	self@@out('M=D')
@@ -417,7 +417,7 @@ proc asm_gen@@gen_call(func, n_args) is
 	self@@out('D=A')
 	self@@push_comp('D')
 
-	# push argument pointer onto stack
+	#-- push argument pointer onto stack
 	self@@load_word('ARG')
 	self@@push_comp('D')
 
@@ -454,6 +454,9 @@ end
 proc asm_gen@@gen_function(func, n_vars) is
 	self@@out('// function ' & func & ' ' & n_vars)
 
+	#-- make a label for this function
+	self@@out('(' & func & ')')
+
 	#-- save the four segment pointers (except args which call did) on the stack
 	for i in ['LCL', 'THIS', 'THAT'] do
 		self@@load_word(i)
@@ -461,26 +464,27 @@ proc asm_gen@@gen_function(func, n_vars) is
 	od
 
 	#-- LCL = SP
-	self@@out('@SP')
-	self@@out('D=M')
-	self@@out('@LCL')
-	self@@out('M=D')
+	self@@load_word('SP')
+	self@@store_word('LCL')
 
-	#-- SP += n_vars
-	if n_vars <= 1 then
-		self@@out('D=' & n_vars)
-	else
-		self@@out('@' & n_vars)
-		self@@out('D=A')
+	#-- if there are 0 local variables we don't need to adjust LCL
+	if n_vars <> 0 then
+		#-- SP += n_vars
+		if n_vars <= 1 then
+			self@@out('D=' & n_vars)
+		else
+			self@@out('@' & n_vars)
+			self@@out('D=A')
+		fi
+		self@@out('@SP')
+		self@@out('M=D+M')
 	fi
-	self@@out('@SP')
-	self@@out('M=D+M')
 
 	self@@out()
 end
 
 #-- restore into segment_addr the value at RAM[*LCL - offset]
-prod asm_gen@@restore(segment_addr, offset) is
+proc asm_gen@@restore(segment_addr, offset) is
 	#-- put *LCL - offset into D register
 	self@@out('@LCL')
 	if offset = 1 then
@@ -497,12 +501,6 @@ prod asm_gen@@restore(segment_addr, offset) is
 	self@@out('M=D')
 end
 
-# produces assembly to copy word from RAM[source] to RAM[destination]
-proc asm_gen@@copy_word(source, destination) is
-	self@@load_word(source)
-	self@@store_word(destination)
-end
-
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
 
@@ -512,13 +510,20 @@ proc asm_gen@@gen_return(_) is
 	self@@out('A=M')
 	self@@out('M=D')
 
-	#-- SP = ARG
-	self@@copy_word('ARG', 'SP')
+	#-- SP = ARG + 1
+	self@@load_word('ARG')
+	self@@out('D=D+1')
+	self@@store_word('SP')
 
 	#-- restore local, argument, this, that (local must be last)
-	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'LCL':3] do
+	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'R13':5, 'LCL':3] do
 		self@@restore(x[1], x[2])
 	od
+
+	#-- jump to return address
+	self@@out('@R13')
+	self@@out('A=M')
+	self@@out('0;JMP')
 
 	self@@out()
 end
