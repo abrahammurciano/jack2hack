@@ -24,7 +24,12 @@ if not parse_args then
 		fi
 
 		#-- otherwise it must be a directory, in which case we make an asm file for all the vm files inside
-		local paths := os.list(path_in, '*.vm')
+		local files := os.list(path_in, '*.vm')
+		local paths := []
+		for i, file in files do
+			paths[i] := path_in & '/' & file
+		od
+		print(paths)
 		if path_out = null then
 			path_out := path_in & '/' & (path_in split '/')[-1] & '.asm'
 		fi

@@ -16,7 +16,9 @@ new_parser := proc() is
 			'label' ~ << (label) -> asm_gen@@gen_label(label) >>,
 			'goto' ~ << (label) -> asm_gen@@gen_goto(label) >>,
 			'if-goto' ~ << (label) -> asm_gen@@gen_if_goto(label) >>,
-			'call' ~ << (func, n_args) -> asm_gen@@gen_call(func, n_args) >>
+			'call' ~ << (func, n_args) -> asm_gen@@gen_call(func, n_args) >>,
+			'function' ~ << (func, n_vars) -> asm_gen@@gen_function(func, n_vars) >>,
+			'return' ~ << () -> asm_gen@@gen_return() >>
 		],
 		commands = [
 			no_args = [
