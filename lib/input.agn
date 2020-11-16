@@ -1,6 +1,6 @@
 if not input then
 
-	# Function to optionally prompt the user with a string then read and return user input
+	#-- Function to optionally prompt the user with a string then read and return user input
 	input := proc (prompt :: string) is
 		if prompt then
 			print(prompt)

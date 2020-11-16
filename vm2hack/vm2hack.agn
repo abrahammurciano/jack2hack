@@ -1,7 +1,7 @@
 #!agena
 
-# Program that translates VM code into Hack assembly
-# Written by Abraham Murciano and Elad Harizy
+#-- Program that translates VM code into Hack assembly
+#-- Written by Abraham Murciano and Elad Harizy
 
 run '../lib/file_base_name.agn'
 run '../lib/input.agn'

@@ -106,18 +106,18 @@ new_parser := proc() is
 			fi
 		fi
 
-		# remove single line comments starting with #
+		#-- remove single line comments starting with #
 		line := strings.chomp(line, '#.*')
 
-		# remove single line comments starting with //
+		#-- remove single line comments starting with //
 		line := strings.chomp(line, '//.*')
 
-		# remove single line comments wrapped in /* ... */
+		#-- remove single line comments wrapped in /* ... */
 		for comment in strings.gmatches(line, '/%*.-%*/') do
 			line := replace(line, comment, ' ')
 		od
 
-		# check for the start of a multi line comment starting with /*
+		#-- check for the start of a multi line comment starting with /*
 		local comment := strings.match(line, '/%*.*$')
 		if comment then
 			line := replace(line, comment, '')

@@ -15,6 +15,16 @@ asm_gen := [
 
 proc asm_gen@@init(fout_path) is
 	self.fout := io.open(fout_path, 'w')
+
+	#-- SP = 256
+	self@@out('@256')
+	self@@out('D=A')
+	self@@out('@SP')
+	self@@out('M=D')
+
+	#-- call Sys.init
+	self@@out('@Sys.init')
+	self@@out('0;JMP')
 end
 
 proc asm_gen@@destruct(_) is
@@ -31,6 +41,7 @@ proc asm_gen@@out(str) is
 	io.writeline(self.fout, str)
 end
 
+#-- convert from segment name to its address, as stored in self.seg_ptr_addr; e.g. from 'local' to 'LCL' or 1
 proc asm_gen@@get_seg_ptr_addr(segment) is
 	local ptr_addr := self.seg_ptr_addr[segment]
 	if not ptr_addr then
@@ -39,7 +50,7 @@ proc asm_gen@@get_seg_ptr_addr(segment) is
 	return ptr_addr
 end
 
-# generate assembly for a push command
+#-- generate assembly for a push command
 proc asm_gen@@gen_push(segment, i) is
 	self@@out('// push ' & segment & ' ' & i)
 
@@ -58,7 +69,7 @@ proc asm_gen@@gen_push(segment, i) is
 	self@@out()
 end
 
-# generate assembly for a pop command
+#-- generate assembly for a pop command
 proc asm_gen@@gen_pop(segment, i) is
 	self@@out('// pop ' & segment & ' ' & i)
 
@@ -75,84 +86,84 @@ proc asm_gen@@gen_pop(segment, i) is
 	self@@out()
 end
 
-# function that produces assembly to put the result of some computation onto stack (overwrites A register)
-# comp must be the comp part of the C-instruction, but cannot mention A or M since A is changed by the function
+#-- function that produces assembly to put the result of some computation onto stack (overwrites A register)
+#-- comp must be the comp part of the C-instruction, but cannot mention A or M since A is changed by the function
 proc asm_gen@@push_comp(comp) is
 	if not comp in {0, 1, -1, 'D', '!D', '-D', 'D+1', 'D-1'} then
 		error('The provided computation "' & comp & '" is invalid because it produces the command "M=' & comp & '".')
 	fi
 
-	# load SP into A register
+	#-- load SP into A register
 	self@@out('@SP')
 	self@@out('A=M')
 
-	# store i (now in D register) into RAM[SP]
+	#-- store i (now in D register) into RAM[SP]
 	self@@out('M=' & comp)
 
-	# increment stack pointer
+	#-- increment stack pointer
 	self@@out('@SP')
 	self@@out('M=M+1')
 end
 
-# function that produces assembly to pop top of stack into D or A register (overwrites A register)
+#-- function that produces assembly to pop top of stack into D or A register (overwrites A register)
 proc asm_gen@@pop_d_register(_) is
-	# decrement stack pointer
+	#-- decrement stack pointer
 	self@@out('@SP')
 	self@@out('M=M-1')
 
-	# load SP into A register
+	#-- load SP into A register
 	self@@out('A=M')
 
-	# store RAM[SP] into D register
+	#-- store RAM[SP] into D register
 	self@@out('D=M')
 end
 
-# push local, argument, this, or that
+#-- push local, argument, this, or that
 proc asm_gen@@push_latt(ptr_addr, i) is
-	# set D to segment address
+	#-- set D to segment address
 	self@@out('@' & ptr_addr)
 	self@@out('D=M')
 
-	# set A to i
+	#-- set A to i
 	self@@out('@' & i)
 
-	# add base and offset
+	#-- add base and offset
 	self@@out('A=D+A')
 
-	# dereference calculated address
+	#-- dereference calculated address
 	self@@out('D=M')
 
 	self@@push_comp('D')
 end
 
-# pop local, argument, this, or that
-# ptr_addr can be any of {'LCL', 'ARG', 'THIS', 'THAT'}
+#-- pop local, argument, this, or that
+#-- ptr_addr can be any of {'LCL', 'ARG', 'THIS', 'THAT'}
 proc asm_gen@@pop_latt(ptr_addr, i) is
 	if not ptr_addr in {'LCL', 'ARG', 'THIS', 'THAT'} then
 		error('Parameter ptr_addr must be one of "LCL", "ARG", "THIS", or "THAT". Received "' & ptr_addr & '".')
 	fi
 
-	# set D to segment address
+	#-- set D to segment address
 	self@@out('@' & ptr_addr)
 	self@@out('D=M')
 
-	# set A to i
+	#-- set A to i
 	self@@out('@' & i)
 
-	# add base and offset
+	#-- add base and offset
 	self@@out('D=D+A')
 
-	# put address in R13
+	#-- put address in R13
 	self@@out('@13')
 	self@@out('M=D')
 
 	self@@pop_d_register()
 
-	# get address from R13 into A
+	#-- get address from R13 into A
 	self@@out('@13')
 	self@@out('A=M')
 
-	# store D (equal to top of stack) in RAM[address]
+	#-- store D (equal to top of stack) in RAM[address]
 	self@@out('M=D')
 end
 
@@ -160,7 +171,7 @@ proc asm_gen@@push_constant(i) is
 	if i in {0, 1} then
 		self@@push_comp(i)
 	else
-		# load i into D register
+		#-- load i into D register
 		self@@out('@' & i)
 		self@@out('D=A')
 
@@ -185,10 +196,10 @@ proc asm_gen@@push_temp(i) is
 		error('Offset out of bounds. Offset "' & i & '" cannot be greater than 8.')
 	fi
 
-	# load base plus offset sum to A register
+	#-- load base plus offset sum to A register
 	self@@out('@' & 5 + i)
 
-	# load contents of base plus offset in D register
+	#-- load contents of base plus offset in D register
 	self@@out('D=M')
 
 	self@@push_comp('D')
@@ -201,7 +212,7 @@ proc asm_gen@@pop_temp(i) is
 
 	self@@pop_d_register()
 
-	# load base plus offset sum to A register
+	#-- load base plus offset sum to A register
 	self@@out('@' & 5 + i)
 
 	self@@out('M=D')
@@ -211,7 +222,7 @@ proc asm_gen@@push_pointer(i) is
 	if i < 0 or i > 1 then
 		error('Pointer segment offset must be 1 or 0.')
 	fi
-	# load contents of this into D register
+	#-- load contents of this into D register
 	self@@out('@' & 3 + i)
 	self@@out('D=M')
 
@@ -227,30 +238,30 @@ proc asm_gen@@pop_pointer(i) is
 	self@@out('M=D')
 end
 
-# generate assembly to put the address to the top of stack into A register
+#-- generate assembly to put the address to the top of stack into A register
 proc asm_gen@@point_to_stack_top(_) is
 	self@@out('@SP')
 	self@@out('A=M-1')
 end
 
-# performs beginning of any binary operation
-# Pops stack top element into D, then makes A point to next stack element
-# sets M to first operand (in place) and D to second
+#-- performs beginning of any binary operation
+#-- Pops stack top element into D, then makes A point to next stack element
+#-- sets M to first operand (in place) and D to second
 proc asm_gen@@pre_binary_op(_) is
-	# place first value into D register
+	#-- place first value into D register
 	self@@pop_d_register()
 
-	# place address to second value (SP-1) in A register
+	#-- place address to second value (SP-1) in A register
 	self@@point_to_stack_top()
 end
 
 proc asm_gen@@gen_add(_) is
 	self@@out('// add')
 
-	# set M to first operand and D to second
+	#-- set M to first operand and D to second
 	self@@pre_binary_op()
 
-	# add first value (from D register) to second value (directly in memory)
+	#-- add first value (from D register) to second value (directly in memory)
 	self@@out('M=D+M')
 
 	self@@out()
@@ -259,10 +270,10 @@ end
 proc asm_gen@@gen_sub(_) is
 	self@@out('// sub')
 
-	# set M to first operand and D to second
+	#-- set M to first operand and D to second
 	self@@pre_binary_op()
 
-	# subtract first value (from D register) from second value (directly in memory)
+	#-- subtract first value (from D register) from second value (directly in memory)
 	self@@out('M=M-D')
 
 	self@@out()
@@ -271,16 +282,16 @@ end
 proc asm_gen@@gen_neg(_) is
 	self@@out('// neg')
 
-	# load address of topmost element into A
+	#-- load address of topmost element into A
 	self@@point_to_stack_top()
 
-	# top element = -top element
+	#-- top element = -top element
 	self@@out('M=-M')
 
 	self@@out()
 end
 
-# produces assembly for the VM commands eq, gt, and lt
+#-- produces assembly for the VM commands eq, gt, and lt
 proc asm_gen@@compare(command) is
 	command := lower(command)
 	if not command in {'eq', 'gt', 'lt'} then
@@ -289,35 +300,35 @@ proc asm_gen@@compare(command) is
 
 	self@@out('// ' & command)
 
-	# set M to first operand and D to second
+	#-- set M to first operand and D to second
 	self@@pre_binary_op()
 
-	# subtract second operand from first
+	#-- subtract second operand from first
 	self@@out('D=M-D')
 
 	local label_success := self.label_maker@@make_label('if_' & command)
 	local label_end := self.label_maker@@make_label('end')
 
-	# if D equals 0 (i.e. if values are equal), jump to label_success
+	#-- if D equals 0 (i.e. if values are equal), jump to label_success
 	self@@out('@' & label_success)
 	self@@out('D;J' & upper(command))
 
-	# if values are not equal, replace top of stack with 0
+	#-- if values are not equal, replace top of stack with 0
 	self@@point_to_stack_top()
 	self@@out('M=0')
 
-	# then jump to end of block
+	#-- then jump to end of block
 	self@@out('@' & label_end)
 	self@@out('0;JMP')
 
-	# define label_success
+	#-- define label_success
 	self@@out('(' & label_success & ')')
 
-	# replace top of stack with TRUE
+	#-- replace top of stack with TRUE
 	self@@point_to_stack_top()
 	self@@out('M=-1')
 
-	# define label_end
+	#-- define label_end
 	self@@out('(' & label_end & ')')
 
 	self@@out()
@@ -338,7 +349,7 @@ end
 proc asm_gen@@gen_and(_) is
 	self@@out('// and')
 
-	# set M to first operand and D to second
+	#-- set M to first operand and D to second
 	self@@pre_binary_op()
 
 	self@@out('M=D&M')
@@ -349,7 +360,7 @@ end
 proc asm_gen@@gen_or(_) is
 	self@@out('// or')
 
-	# set M to first operand and D to second
+	#-- set M to first operand and D to second
 	self@@pre_binary_op()
 
 	self@@out('M=D|M')
@@ -362,8 +373,8 @@ proc asm_gen@@gen_not(_) is
 
 	self@@point_to_stack_top()
 
-	# inverts value of either 0 or 1 at position in memory M
-	# ! inverts all bits
+	#-- inverts value of either 0 or 1 at position in memory M
+	#-- ! inverts all bits
 	self@@out('M=!M')
 
 	self@@out()
@@ -401,16 +412,16 @@ proc asm_gen@@gen_call(func, n_args) is
 
 	local return_address = self.label_maker@@make_label('RETURN_ADDRESS')
 
-	# push return address onto stack
+	#-- push return address onto stack
 	self@@out('@' & return_address)
 	self@@out('D=A')
 	self@@push_comp('D')
 
-	# push argument pointer onto stack
+	#-- push argument pointer onto stack
 	self@@load_ram('ARG')
 	self@@push_comp('D')
 
-	# ARG = SP - (n_args + 2)
+	#-- ARG = SP - (n_args + 2)
 	self@@out('@SP')
 	self@@out('D=M')
 	self@@out('@' & n_args + 2)
@@ -418,17 +429,17 @@ proc asm_gen@@gen_call(func, n_args) is
 	self@@out('@ARG')
 	self@@out('M=D')
 
-	# go to function code
+	#-- go to function code
 	self@@out('@' & func)
 	self@@out('0;JMP')
 
-	# make a label for return address
+	#-- make a label for return address
 	self@@out('(' & return_address & ')')
 
 	self@@out()
 end
 
-# load contents of RAM[i] into D register
+#-- load contents of RAM[i] into D register
 proc asm_gen@@load_ram(i) is
 	self@@out('@' & i)
 	self@@out('D=M')
@@ -437,19 +448,19 @@ end
 proc asm_gen@@gen_function(func, n_vars) is
 	self@@out('// function ' & func & ' ' & n_vars)
 
-	# save the four segment pointers (except args which call did) on the stack
+	#-- save the four segment pointers (except args which call did) on the stack
 	for i in ['LCL', 'THIS', 'THAT'] do
 		self@@load_ram(i)
 		self@@push_comp('D')
 	od
 
-	# LCL = SP
+	#-- LCL = SP
 	self@@out('@SP')
 	self@@out('D=M')
 	self@@out('@LCL')
 	self@@out('M=D')
 
-	# SP += n_vars
+	#-- SP += n_vars
 	if n_vars <= 1 then
 		self@@out('D=' & n_vars)
 	else
@@ -462,9 +473,9 @@ proc asm_gen@@gen_function(func, n_vars) is
 	self@@out()
 end
 
-# restore into segment_addr the value at RAM[*LCL - offset]
+#-- restore into segment_addr the value at RAM[*LCL - offset]
 prod asm_gen@@restore(segment_addr, offset) is
-	# put *LCL - offset into D register
+	#-- put *LCL - offset into D register
 	self@@out('@LCL')
 	if offset = 1 then
 		self@@out('A=M-1')
@@ -475,7 +486,7 @@ prod asm_gen@@restore(segment_addr, offset) is
 	fi
 	self@@out('D=M')
 
-	# make segment point to value in D register
+	#-- make segment point to value in D register
 	self@@out('@' & segment_addr)
 	self@@out('M=D')
 end
@@ -483,13 +494,13 @@ end
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
 
-	# pop into RAM[*ARG]
-	# TODO
+	#-- pop into RAM[*ARG]
+	#-- TODO
 
-	# SP = ARG
-	# TODO
+	#-- SP = ARG
+	#-- TODO
 
-	# restore local, argument, this, that
+	#-- restore local, argument, this, that
 	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'LCL':3] do
 		self@@restore(x[1], x[2])
 	od

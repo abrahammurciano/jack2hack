@@ -1,7 +1,7 @@
-# Program that asks user for input file name and output file name and copies the content of one to the other, line by line.
-# Written by Abraham Murciano and Elad Harizy
+#-- Program that asks user for input file name and output file name and copies the content of one to the other, line by line.
+#-- Written by Abraham Murciano and Elad Harizy
 
-# Function to optionally prompt the user with a string then read and return user input
+#-- Function to optionally prompt the user with a string then read and return user input
 input := proc (prompt :: string) is
 	if prompt then
 		print(prompt)
@@ -12,12 +12,12 @@ end
 in_file_name := input('Enter a file name to read from')
 out_file_name := input('Enter a file name to write to')
 
-# Open an output file in write mode
+#-- Open an output file in write mode
 fout := io.open(out_file_name, 'w')
 
-# Iterate over lines of input file
+#-- Iterate over lines of input file
 for keys line in io.lines(in_file_name) do
-	# Write a line from in file to out file
+	#-- Write a line from in file to out file
 	io.writeline(fout, line)
 od
 
