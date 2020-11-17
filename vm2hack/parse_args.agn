@@ -29,7 +29,6 @@ if not parse_args then
 		for i, file in files do
 			paths[i] := path_in & '/' & file
 		od
-		print(paths)
 		if path_out = null then
 			path_out := path_in & '/' & (path_in split '/')[-1] & '.asm'
 		fi

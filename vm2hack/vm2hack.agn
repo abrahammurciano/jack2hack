@@ -23,22 +23,23 @@ main := proc() is
 		return
 	yrt
 
-	local i := 1
 	for fin_name in fin_names do
-		print('Compiling file "' & fin_name & '"... ')
+		io.write('Compiling file "' & fin_name & '"... ')
 		asm_gen@@set_file_name(fin_name)
 		local parser := new_parser()
-		for keys line in io.lines(fin_name) do
-			try
+		local vm_command := null
+		local i := 1
+		try
+			for keys line in io.lines(fin_name) do
+				vm_command := line
 				parser@@parse_line(line)
-			catch msg then
-				print('Error in "' & fin_name & '" on line ' & i & ' near "' & line & '".')
-				print(msg)
-			yrt
-			i++
-		od
-
-		print('done')
+				i++
+			od
+			io.write('done\n')
+		catch msg then
+			print('\nError in "' & fin_name & '" on line ' & i & ' near "' & vm_command & '".')
+			print(msg)
+		yrt
 	od
 
 	asm_gen@@destruct()

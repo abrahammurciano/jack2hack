@@ -9,21 +9,22 @@ asm_gen := [
 		'that' ~ 'THAT'
 	],
 	label_maker = new_label_maker(),
-	file_base_name = null
+	file_base_name = null,
+	first_function_name = 'Sys.init'
 ]
 
 proc asm_gen@@init(fout_path) is
 	self.fout := io.open(fout_path, 'w')
 
 	#-- SP = 256
-	#-- had to change to 258 to pass tests, which are not optimal
-	self@@out('@258')
+	#-- had to change to 261 to pass tests, which expect unoptimal use of stack
+	self@@out('@261')
 	self@@out('D=A')
 	self@@out('@SP')
 	self@@out('M=D')
 
 	#-- call Sys.init
-	self@@out('@Sys.init')
+	self@@out('@' & self.first_function_name & '$entry')
 	self@@out('0;JMP')
 end
 
@@ -118,17 +119,35 @@ proc asm_gen@@pop_d_register(_) is
 	self@@out('D=M')
 end
 
+#-- generate assembly to caculate address stored in ptr_addr, plus i, and store the result in dest register
+#-- will overwrite D register if i > 2
+proc asm_gen@@base_plus_offset(ptr_addr, offset, dest) is
+	if not dest in {'D', 'A'} then
+		error('Cannot store address in "' & dest & '".')
+	fi
+
+	self@@out('@' & ptr_addr)
+	if offset = 0 then
+		self@@out(dest & '=M')
+	elif offset = 1 then
+		self@@out(dest & '=M+1')
+	elif offset = 2 then
+		self@@out(dest & '=M+1')
+		self@@out(dest & '=' & dest & '+1')
+	else
+		self@@out('D=M')
+		#-- set A to i
+		self@@out('@' & offset)
+
+		#-- add base and offset
+		self@@out(dest & '=D+A')
+	fi
+end
+
 #-- push local, argument, this, or that
 proc asm_gen@@push_latt(ptr_addr, i) is
-	#-- set D to segment address
-	self@@out('@' & ptr_addr)
-	self@@out('D=M')
-
-	#-- set A to i
-	self@@out('@' & i)
-
-	#-- add base and offset
-	self@@out('A=D+A')
+	#-- set A to segment address + i
+	self@@base_plus_offset(ptr_addr, i, 'A')
 
 	#-- dereference calculated address
 	self@@out('D=M')
@@ -143,24 +162,17 @@ proc asm_gen@@pop_latt(ptr_addr, i) is
 		error('Parameter ptr_addr must be one of "LCL", "ARG", "THIS", or "THAT". Received "' & ptr_addr & '".')
 	fi
 
-	#-- set D to segment address
-	self@@out('@' & ptr_addr)
-	self@@out('D=M')
-
-	#-- set A to i
-	self@@out('@' & i)
-
-	#-- add base and offset
-	self@@out('D=D+A')
+	#-- set D to segment address + i
+	self@@base_plus_offset(ptr_addr, i, 'D')
 
 	#-- put address in R13
-	self@@out('@13')
+	self@@out('@R13')
 	self@@out('M=D')
 
 	self@@pop_d_register()
 
 	#-- get address from R13 into A
-	self@@out('@13')
+	self@@out('@R13')
 	self@@out('A=M')
 
 	#-- store D (equal to top of stack) in RAM[address]
@@ -324,7 +336,7 @@ proc asm_gen@@compare(command) is
 	#-- define label_success
 	self@@out('(' & label_success & ')')
 
-	#-- replace top of stack with TRUE
+	#-- replace top of stack with true (-1)
 	self@@point_to_stack_top()
 	self@@out('M=-1')
 
@@ -407,6 +419,18 @@ proc asm_gen@@gen_if_goto(label) is
 	self@@out()
 end
 
+#-- load contents of RAM[i] into D register
+proc asm_gen@@load_word(i) is
+	self@@out('@' & i)
+	self@@out('D=M')
+end
+
+# store contents of D register into RAM[i]
+proc asm_gen@@store_word(i) is
+	self@@out('@' & i)
+	self@@out('M=D')
+end
+
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
@@ -439,18 +463,6 @@ proc asm_gen@@gen_call(func, n_args) is
 	self@@out()
 end
 
-#-- load contents of RAM[i] into D register
-proc asm_gen@@load_word(i) is
-	self@@out('@' & i)
-	self@@out('D=M')
-end
-
-# store contents of D register into RAM[i]
-proc asm_gen@@store_word(i) is
-	self@@out('@' & i)
-	self@@out('M=D')
-end
-
 proc asm_gen@@gen_function(func, n_vars) is
 	self@@out('// function ' & func & ' ' & n_vars)
 
@@ -463,22 +475,19 @@ proc asm_gen@@gen_function(func, n_vars) is
 		self@@push_comp('D')
 	od
 
+	#-- the first time Sys.init is called, there is no need to store segment pointers
+	#-- so we can jump straingt to here
+	if func = self.first_function_name then
+		self@@out('(' & self.first_function_name & '$entry)')
+	fi
+
 	#-- LCL = SP
 	self@@load_word('SP')
 	self@@store_word('LCL')
 
-	#-- if there are 0 local variables we don't need to adjust LCL
-	if n_vars <> 0 then
-		#-- SP += n_vars
-		if n_vars <= 1 then
-			self@@out('D=' & n_vars)
-		else
-			self@@out('@' & n_vars)
-			self@@out('D=A')
-		fi
-		self@@out('@SP')
-		self@@out('M=D+M')
-	fi
+	for i to n_vars do
+		self@@push_comp(0)
+	od
 
 	self@@out()
 end
@@ -504,6 +513,9 @@ end
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
 
+	#-- save return address into R13 in case there are no args and the return value overwrites the RA
+	self@@restore('R13', 5)
+
 	#-- pop return value into RAM[*ARG]
 	self@@pop_d_register()
 	self@@out('@ARG')
@@ -511,12 +523,12 @@ proc asm_gen@@gen_return(_) is
 	self@@out('M=D')
 
 	#-- SP = ARG + 1
-	self@@load_word('ARG')
-	self@@out('D=D+1')
+	self@@out('@ARG')
+	self@@out('D=M+1')
 	self@@store_word('SP')
 
-	#-- restore local, argument, this, that (local must be last)
-	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'R13':5, 'LCL':3] do
+	#-- restore local, argument, this, that, and return address (local must be last)
+	for x in ['THAT':1, 'THIS':2, 'ARG':4, 'LCL':3] do
 		self@@restore(x[1], x[2])
 	od
 
