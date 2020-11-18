@@ -108,12 +108,9 @@ end
 
 #-- function that produces assembly to pop top of stack into D or A register (overwrites A register)
 proc asm_gen@@pop_d_register(_) is
-	#-- decrement stack pointer
+	#-- decrement stack pointer and load SP into A register
 	self@@out('@SP')
-	self@@out('M=M-1')
-
-	#-- load SP into A register
-	self@@out('A=M')
+	self@@out('AM=M-1')
 
 	#-- store RAM[SP] into D register
 	self@@out('D=M')
