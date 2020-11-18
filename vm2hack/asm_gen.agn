@@ -17,8 +17,6 @@ asm_gen := [
 proc asm_gen@@init(fout_path, gen_bootstrap) is
 	gen_bootstrap := if gen_bootstrap = null then true else gen_bootstrap fi
 
-	print('in asm_gen@@init: gen_bootstrap=' & gen_bootstrap)
-
 	self.fout := io.open(fout_path, 'w')
 
 	if gen_bootstrap then

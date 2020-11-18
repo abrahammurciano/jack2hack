@@ -10,16 +10,21 @@ run 'asm_gen.agn'
 run 'parser.agn'
 
 main := proc() is
+	#-- get names of input and output files from command line args
 	local fin_names, fout_name := parse_args('asm')
+
+	#-- check if one of the files is Sys.vm
+	local sys_present := false
+	for fin_name in fin_names do
+		if ('Sys.vm' atendof fin_name) <> null then
+			sys_present := true
+			break
+		fi
+	od
+
 	try
-		#-- check if one of the files is Sys.vm
-		local sys_present := false
-		for fin_name in fin_names do
-			if ('Sys.vm' atendof fin_name) <> null then
-				sys_present := true
-				break
-			fi
-		od
+		#-- initiate the assempbly generator, providint the output file name, and weather or not to produce bootstrap code
+		#-- if Sys.vm is present, then product it, otherwise don't
 		asm_gen@@init(fout_name, sys_present)
 		io.writeline('Generating assembly to file "' & fout_name & '".')
 	catch msg then
@@ -31,10 +36,10 @@ main := proc() is
 		return
 	yrt
 
+	local parser := new_parser()
 	for fin_name in fin_names do
 		io.write('Compiling file "' & fin_name & '"... ')
 		asm_gen@@set_file_name(fin_name)
-		local parser := new_parser()
 		local vm_command := null
 		local i := 1
 		try
