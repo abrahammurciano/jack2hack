@@ -9,23 +9,32 @@ asm_gen := [
 		'that' ~ 'THAT'
 	],
 	label_maker = new_label_maker(),
-	file_base_name = null,
-	first_function_name = 'Sys.init'
+	current_file_base_name = null,
+	current_function = 'null',
+	first_function_name = null
 ]
 
-proc asm_gen@@init(fout_path) is
+proc asm_gen@@init(fout_path, gen_bootstrap) is
+	gen_bootstrap := if gen_bootstrap = null then true else gen_bootstrap fi
+
+	print('in asm_gen@@init: gen_bootstrap=' & gen_bootstrap)
+
 	self.fout := io.open(fout_path, 'w')
 
-	#-- SP = 256
-	#-- had to change to 261 to pass tests, which expect unoptimal use of stack
-	self@@out('@261')
-	self@@out('D=A')
-	self@@out('@SP')
-	self@@out('M=D')
+	if gen_bootstrap then
+		self.first_function_name := 'Sys.init'
 
-	#-- call Sys.init
-	self@@out('@' & self.first_function_name & '$entry')
-	self@@out('0;JMP')
+		#-- SP = 256
+		#-- had to change to 261 to pass tests, which expect unoptimal use of stack
+		self@@out('@261')
+		self@@out('D=A')
+		self@@out('@SP')
+		self@@out('M=D')
+
+		#-- call Sys.init's entry point, labelled start (skips pushing stuff onto stack)
+		self@@out('@start')
+		self@@out('0;JMP')
+	fi
 end
 
 proc asm_gen@@destruct(_) is
@@ -33,8 +42,12 @@ proc asm_gen@@destruct(_) is
 end
 
 proc asm_gen@@set_file_name(fin_path) is
-	self.file_base_name := file_base_name(fin_path)
-	self@@out('// Start of file "' & fin_path & '"\n')
+	self.current_file_base_name := file_base_name(fin_path)
+	self@@out('\n// Start of file "' & fin_path & '"\n')
+end
+
+proc asm_gen@@set_function(func_name) is
+	self.current_function := func_name
 end
 
 proc asm_gen@@out(str) is
@@ -189,14 +202,14 @@ proc asm_gen@@push_constant(i) is
 end
 
 proc asm_gen@@push_static(i) is
-	self@@out('@' & self.file_base_name & '.' & i)
+	self@@out('@' & self.current_file_base_name & '.' & i)
 	self@@out('D=M')
 	self@@push_comp('D')
 end
 
 proc asm_gen@@pop_static(i) is
 	self@@pop_d_register()
-	self@@out('@' & self.file_base_name & '.' & i)
+	self@@out('@' & self.current_file_base_name & '.' & i)
 	self@@out('M=D')
 end
 
@@ -392,7 +405,7 @@ end
 proc asm_gen@@gen_label(label) is
 	self@@out('// label ' & label)
 
-	self@@out('(' & self.file_base_name & '.' & label & ')')
+	self@@out('(' & self.label_maker@@vm_label(self.current_function, label) & ')')
 
 	self@@out()
 end
@@ -400,7 +413,7 @@ end
 proc asm_gen@@gen_goto(label) is
 	self@@out('// goto ' & label)
 
-	self@@out('@' & self.file_base_name & '.' & label)
+	self@@out('@' & self.label_maker@@vm_label(self.current_function, label))
 	self@@out('0;JMP')
 
 	self@@out()
@@ -410,7 +423,7 @@ proc asm_gen@@gen_if_goto(label) is
 	self@@out('// if-goto ' & label)
 
 	self@@pop_d_register()
-	self@@out('@' & self.file_base_name & '.' & label)
+	self@@out('@' & self.label_maker@@vm_label(self.current_function, label))
 	self@@out('D;JNE')
 
 	self@@out()
@@ -431,7 +444,7 @@ end
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
-	local return_address := self.label_maker@@make_label('RETURN_ADDRESS')
+	local return_address := self.label_maker@@return_label(self.current_function)
 
 	#-- push return address onto stack
 	self@@out('@' & return_address)
@@ -461,7 +474,16 @@ proc asm_gen@@gen_call(func, n_args) is
 end
 
 proc asm_gen@@gen_function(func, n_vars) is
+	#-- if there was no bootstrap code, make the first encountered function the start point, and skip the step where it stores the previous function's state
+	if self.first_function_name = null then
+		self.first_function_name := func
+		self@@out('@start')
+		self@@out('0;JMP')
+	fi
+
 	self@@out('// function ' & func & ' ' & n_vars)
+
+	self@@set_function(func)
 
 	#-- make a label for this function
 	self@@out('(' & func & ')')
@@ -474,8 +496,9 @@ proc asm_gen@@gen_function(func, n_vars) is
 
 	#-- the first time Sys.init is called, there is no need to store segment pointers
 	#-- so we can jump straingt to here
+	#-- if there is only one file, there is no sys.init, so the first function will be called
 	if func = self.first_function_name then
-		self@@out('(' & self.first_function_name & '$entry)')
+		self@@out('(start)')
 	fi
 
 	#-- LCL = SP

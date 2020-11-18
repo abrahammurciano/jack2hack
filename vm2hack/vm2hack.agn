@@ -12,7 +12,15 @@ run 'parser.agn'
 main := proc() is
 	local fin_names, fout_name := parse_args('asm')
 	try
-		asm_gen@@init(fout_name)
+		#-- check if one of the files is Sys.vm
+		local sys_present := false
+		for fin_name in fin_names do
+			if ('Sys.vm' atendof fin_name) <> null then
+				sys_present := true
+				break
+			fi
+		od
+		asm_gen@@init(fout_name, sys_present)
 		io.writeline('Generating assembly to file "' & fout_name & '".')
 	catch msg then
 		print('Error: Could not create or open output file "' & fout_name & '".')

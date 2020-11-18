@@ -6,8 +6,16 @@ if not new_label_maker then
 			prefix = 'LABEL'
 		]
 
-		proc label_maker@@make_label(prefix) is
-			return (prefix or self.prefix) & '_' & self.counter++
+		proc label_maker@@make_label(prefix, sep) is
+			return (prefix or self.prefix) & (sep or '$') & self.counter++
+		end
+
+		proc label_maker@@vm_label(func, label) is
+			return func & '.' & label
+		end
+
+		proc label_maker@@return_label(func) is
+			return func & '$ret.' & self.counter++
 		end
 
 		return label_maker
