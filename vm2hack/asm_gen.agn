@@ -1,5 +1,5 @@
-run '../lib/file_base_name.agn'
-run 'label_maker.agn'
+run(vm2hack_dir & '/../lib/file_base_name')
+run(vm2hack_dir & '/label_maker')
 
 asm_gen := [
 	seg_ptr_addr = [
