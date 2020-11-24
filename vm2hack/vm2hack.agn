@@ -33,9 +33,10 @@ main := proc() is
 		#-- initiate the assempbly generator, providint the output file name, and weather or not to produce bootstrap code
 		#-- if Sys.vm is present, then product it, otherwise don't
 		asm_gen@@init(fout_name, sys_present)
-		io.writeline('Generating assembly to file "' & os.realpath(fout_name) & '".')
+		io.writeline('Generating assembly to file "' & os.curdir() & fout_name & '".')
 	catch msg then
-		print('Error: Could not create or open output file "' & fout_name & '".')
+		print(msg)
+		print('Error: Could not create or open output file "' & os.curdir() & fout_name & '".')
 		local dirname := os.dirname(fout_name)
 		if not os.isdir(dirname) then
 			print('Directory "' & dirname & '" does not exist.')

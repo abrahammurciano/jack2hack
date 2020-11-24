@@ -1,6 +1,5 @@
 run(vm2hack_dir & '/../lib/file_base_name')
 run(vm2hack_dir & '/label_maker')
-run(vm2hack_dir & '/function_checker')
 run(vm2hack_dir & '/func')
 
 asm_gen := [
@@ -11,13 +10,12 @@ asm_gen := [
 		'that' ~ 'THAT'
 	],
 	label_maker = new_label_maker(),
-	function_checker = new_function_checker(),
 	current_file_base_name = null,
 	current_function = 'null',
 	first_function_name = null,
 	return_exists = false,
 	funcs = [
-		'$$bootstrap' ~ new_func('$$bootstrap')
+		'$$bootstrap' ~ new_func('$$bootstrap', true)
 	]
 ]
 
@@ -30,7 +28,6 @@ proc asm_gen@@init(fout_path, gen_bootstrap) is
 
 	if gen_bootstrap then
 		self.first_function_name := 'Sys.init'
-
 		#-- SP = 256
 		#-- had to change to 261 to pass tests, which expect unoptimal use of stack
 		self@@out('@261')
@@ -54,25 +51,27 @@ proc asm_gen@@used_functions(_) is
 		pop bottom from queue
 		skip when first in used
 		insert first into used
-		queue := queue union toseq(self.funcs[first].dependancies)
+		queue := queue union toseq(self@@get_func(first).dependancies)
 	od
 	return used
 end
 
 proc asm_gen@@get_errors(_) is
-	errors := []
+	local errors := []
 	#-- check for undefined functions
-	for func in function_checker@@undefined_functions() do
-		insert 'Error: Call to undefined function "' & func & '".' into errors
+	for func in self.funcs do
+		if not func.defined then
+			insert 'Error: Call to undefined function "' & func.name & '".' into errors
+		fi
 	od
 	return errors
 end
 
 #-- write the asm which was generated for each function to the output file
 proc asm_gen@@write_asm(_) is
-	io.writeline(self.fout, self.funcs['$$bootstrap'].asm)
+	io.writeline(self.fout, self@@get_func('$$bootstrap').asm)
 	for func in self@@used_functions() do
-		io.writeline(self.fout, self.funcs[func].asm)
+		io.writeline(self.fout, self@@get_func(func).asm)
 	od
 end
 
@@ -83,8 +82,10 @@ proc asm_gen@@destruct(_) is
 end
 
 proc asm_gen@@abort(_) is
-	io.close(self.fout)
-	os.remove(self.fout_path)
+	if self.fout then
+		io.close(self.fout)
+		os.remove(self.fout_path)
+	fi
 end
 
 proc asm_gen@@set_file_name(fin_path) is
@@ -97,7 +98,7 @@ proc asm_gen@@set_function(func_name) is
 end
 
 proc asm_gen@@out(str) is
-	self.funcs[self.current_function]@@out(str)
+	self@@get_func(self.current_function)@@out(str)
 end
 
 #-- convert from segment name to its address, as stored in self.seg_ptr_addr; e.g. from 'local' to 'LCL' or 1
@@ -486,14 +487,20 @@ proc asm_gen@@store_word(i) is
 	self@@out('M=D')
 end
 
+proc asm_gen@@get_func(name) is
+	local func :=  self.funcs[name]
+	if func = null then
+		func := new_func(name)
+		self.funcs[name] := func
+	fi
+	return func
+end
+
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
 	#-- add the called function to the dependancies of this function
-	self.funcs[self.current_function]@@depends(func)
-
-	#-- let function_checker know that we are calling func
-	self.function_checker@@call(func)
+	self@@get_func(self.current_function)@@calls(self@@get_func(func))
 
 	local return_address := self.label_maker@@return_label(self.current_function)
 
@@ -525,24 +532,21 @@ proc asm_gen@@gen_call(func, n_args) is
 end
 
 proc asm_gen@@gen_function(func, n_vars) is
+	self@@set_function(func)
+
 	#-- if there was no bootstrap code, make the first encountered function the start point, and skip the step where it stores the previous function's state
 	if self.first_function_name = null then
 		self.first_function_name := func
 	fi
 
 	#-- check if function was already defined
-	if self.funcs[func] then
+	if self@@get_func(func).defined then
 		error('Error. Multiple definitions for function "' & func & '".')
 	fi
-	#-- create a function object
-	self.funcs[func] := new_func(func)
+	#-- create a function object if it doesn't exist and declare it as defined
+	self@@get_func(func).defined := true
 
 	self@@out('// function ' & func & ' ' & n_vars)
-
-	self@@set_function(func)
-
-	#-- tell function_checker that func is being defined
-	self.function_checker@@def(func)
 
 	#-- make a label for this function
 	self@@out('(' & func & ')')

@@ -1,12 +1,15 @@
-new_func := proc(name) is
-	func := [
+new_func := proc(name, defined) is
+	defined := if defined then true else false fi
+
+	local func := [
 		'name' ~ name,
 		'dependancies' ~ {},
 		'asm' ~ '',
+		'defined' ~ defined
 	]
 
-	proc func@@depends(other) is
-		insert other into self.dependancies
+	proc func@@calls(other) is
+		insert other.name into self.dependancies
 	end
 
 	proc func@@out(line) is
