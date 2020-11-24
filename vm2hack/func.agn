@@ -4,7 +4,7 @@ new_func := proc(name, defined) is
 	local func := [
 		'name' ~ name,
 		'dependancies' ~ {},
-		'asm' ~ '',
+		'asm' ~ [],
 		'defined' ~ defined
 	]
 
@@ -13,7 +13,60 @@ new_func := proc(name, defined) is
 	end
 
 	proc func@@out(line) is
-		self.asm &:= if line = null then '' else line fi & '\n'
+		if line = null then
+			line := ''
+		fi
+		insert line & '\n' into self@@code_receptor()
+	end
+
+	#-- depending on the optimisation mode returns the parent or a nested list to put lines from out calls into
+	proc func@@code_receptor(_) is
+		if self.optimisation_mode = 'started' then
+			local chunk := top(self.asm)
+			return chunk[2][1]
+		elif self.optimisation_mode = 'switched' then
+			local chunk := top(self.asm)
+			return chunk[2][2]
+		else
+			return self.asm
+		fi
+	end
+
+	#-- once this function is called, all subsequent out calls will be the longer reusable code
+	proc func@@start_optimisation(name) is
+		insert name:[[],[]] into self.asm
+		self.optimisation_mode := 'started'
+	end
+
+	#-- once this function is called, all subsequent out calls will be the shorter code which replaces the last defined longer reusable code
+	proc func@@switch_optimisation(_) is
+		self.optimisation_mode := 'switched'
+	end
+
+	#-- this function ends the optimisation mode. subsequent out calls will be treated regularly
+	proc func@@end_optimisation(_) is
+		self.optimisation_mode := null
+	end
+
+	#-- takes a list of optimisation identifiers and returns a string with all the asm, inserting new optimisations into the given list if encountered
+	proc func@@generate_asm(optimisation_list) is
+		local asm := ''
+		for block in self.asm do
+			if type(block) = 'string' then
+				asm &:= block
+			else
+				if block[1] in optimisation_list then
+					selected_block := block[2][2]
+				else
+					selected_block := block[2][1]
+					insert block[1] into optimisation_list
+				fi
+				for line in selected_block do
+					asm &:= line
+				od
+			fi
+		od
+		return asm
 	end
 
 	return func

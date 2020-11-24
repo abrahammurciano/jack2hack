@@ -11,30 +11,29 @@ asm_gen := [
 	],
 	label_maker = new_label_maker(),
 	current_file_base_name = null,
-	current_function = 'null',
-	first_function_name = null,
-	return_exists = false,
+	current_function = new_func('null'),
+	first_function_name = 'Sys.init',
 	funcs = [
 		'$$bootstrap' ~ new_func('$$bootstrap', true)
 	]
 ]
 
-proc asm_gen@@init(fout_path, gen_bootstrap) is
+proc asm_gen@@init(fout_path) is
 	gen_bootstrap := if gen_bootstrap = null then true else gen_bootstrap fi
 
 	self.fout_path := fout_path
 
-	self@@set_function('$$bootstrap')
+	self@@bootstrap()
+end
 
-	if gen_bootstrap then
-		self.first_function_name := 'Sys.init'
-		#-- SP = 256
-		#-- had to change to 261 to pass tests, which expect unoptimal use of stack
-		self@@out('@261')
-		self@@out('D=A')
-		self@@out('@SP')
-		self@@out('M=D')
-	fi
+proc asm_gen@@bootstrap(_) is
+	self@@set_func('$$bootstrap')
+
+	#-- SP = 256
+	self@@out('@256')
+	self@@out('D=A')
+	self@@out('@SP')
+	self@@out('M=D')
 
 	#-- call the first function's entry point, labelled $$start (skips pushing stuff onto stack)
 	self@@out('@$$start')
@@ -69,9 +68,10 @@ end
 
 #-- write the asm which was generated for each function to the output file
 proc asm_gen@@write_asm(_) is
-	io.writeline(self.fout, self@@get_func('$$bootstrap').asm)
+	local optimisation_list := []
+	io.writeline(self.fout, self@@get_func('$$bootstrap')@@generate_asm(optimisation_list))
 	for func in self@@used_functions() do
-		io.writeline(self.fout, self@@get_func(func).asm)
+		io.writeline(self.fout, self@@get_func(func)@@generate_asm(optimisation_list))
 	od
 end
 
@@ -93,12 +93,23 @@ proc asm_gen@@set_file_name(fin_path) is
 	self@@out('\n// Start of file "' & fin_path & '"\n')
 end
 
-proc asm_gen@@set_function(func_name) is
-	self.current_function := func_name
+#-- get a func object of the given name
+proc asm_gen@@get_func(name) is
+	local func :=  self.funcs[name]
+	if func = null then
+		func := new_func(name)
+		self.funcs[name] := func
+	fi
+	return func
+end
+
+#-- set the current function to one of the given name
+proc asm_gen@@set_func(name) is
+	self.current_function := self@@get_func(name)
 end
 
 proc asm_gen@@out(str) is
-	self@@get_func(self.current_function)@@out(str)
+	self.current_function@@out(str)
 end
 
 #-- convert from segment name to its address, as stored in self.seg_ptr_addr; e.g. from 'local' to 'LCL' or 1
@@ -451,7 +462,7 @@ end
 proc asm_gen@@gen_label(label) is
 	self@@out('// label ' & label)
 
-	self@@out('(' & self.label_maker@@vm_label(self.current_function, label) & ')')
+	self@@out('(' & self.label_maker@@vm_label(self.current_function.name, label) & ')')
 
 	self@@out()
 end
@@ -459,7 +470,7 @@ end
 proc asm_gen@@gen_goto(label) is
 	self@@out('// goto ' & label)
 
-	self@@out('@' & self.label_maker@@vm_label(self.current_function, label))
+	self@@out('@' & self.label_maker@@vm_label(self.current_function.name, label))
 	self@@out('0;JMP')
 
 	self@@out()
@@ -469,7 +480,7 @@ proc asm_gen@@gen_if_goto(label) is
 	self@@out('// if-goto ' & label)
 
 	self@@pop_d_register()
-	self@@out('@' & self.label_maker@@vm_label(self.current_function, label))
+	self@@out('@' & self.label_maker@@vm_label(self.current_function.name, label))
 	self@@out('D;JNE')
 
 	self@@out()
@@ -487,26 +498,21 @@ proc asm_gen@@store_word(i) is
 	self@@out('M=D')
 end
 
-proc asm_gen@@get_func(name) is
-	local func :=  self.funcs[name]
-	if func = null then
-		func := new_func(name)
-		self.funcs[name] := func
-	fi
-	return func
-end
-
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
 	#-- add the called function to the dependancies of this function
-	self@@get_func(self.current_function)@@calls(self@@get_func(func))
+	self.current_function@@calls(self@@get_func(func))
 
-	local return_address := self.label_maker@@return_label(self.current_function)
+	local return_address := self.label_maker@@return_label(self.current_function.name)
 
 	#-- push return address onto stack
 	self@@out('@' & return_address)
 	self@@out('D=A')
+
+	self.current_function@@start_optimisation('$Call$' & func & '$' & n_args)
+	self@@out('($Call$' & func & '$' & n_args & ')')
+
 	self@@push_comp('D')
 
 	#-- push argument pointer onto stack
@@ -523,6 +529,13 @@ proc asm_gen@@gen_call(func, n_args) is
 
 	#-- go to function code
 	self@@out('@' & func)
+
+	self.current_function@@switch_optimisation()
+
+	self@@out('@$Call$' & func & '$' & n_args)
+
+	self.current_function@@end_optimisation()
+
 	self@@out('0;JMP')
 
 	#-- make a label for return address
@@ -532,12 +545,7 @@ proc asm_gen@@gen_call(func, n_args) is
 end
 
 proc asm_gen@@gen_function(func, n_vars) is
-	self@@set_function(func)
-
-	#-- if there was no bootstrap code, make the first encountered function the start point, and skip the step where it stores the previous function's state
-	if self.first_function_name = null then
-		self.first_function_name := func
-	fi
+	self@@set_func(func)
 
 	#-- check if function was already defined
 	if self@@get_func(func).defined then
@@ -559,7 +567,6 @@ proc asm_gen@@gen_function(func, n_vars) is
 
 	#-- the first time Sys.init is called, there is no need to store segment pointers
 	#-- so we can jump straingt to here
-	#-- if there is only one file, there is no sys.init, so the first function will be called
 	if func = self.first_function_name then
 		self@@out('($$start)')
 	fi
@@ -596,16 +603,9 @@ end
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
 
-	#-- if the return code has already been generated once, jump there (because the return code can be reused)
-	if self.return_exists then
-		self@@out('@$$return')
-		self@@out('0;JMP')
-		return
-	fi
-
-	#-- otherwise, generate the code once
+	#-- the following code only needs to be included once
+	self.current_function@@start_optimisation('$$return')
 	self@@out('($$return)')
-	self.return_exists := true
 
 	#-- save return address into R13 in case there are no args and the return value overwrites the RA
 	self@@restore('R13', 5)
@@ -629,7 +629,14 @@ proc asm_gen@@gen_return(_) is
 	#-- jump to return address
 	self@@out('@R13')
 	self@@out('A=M')
-	self@@out('0;JMP')
 
-	self@@out()
+	#-- the following code replaces the above code after the first time
+	self.current_function@@switch_optimisation()
+
+	self@@out('@$$return')
+
+	#-- the following code is again always used
+	self.current_function@@end_optimisation()
+
+	self@@out('0;JMP')
 end

@@ -20,19 +20,9 @@ main := proc() is
 		return
 	fi
 
-	#-- check if one of the files is Sys.vm
-	local sys_present := false
-	for fin_name in fin_names do
-		if ('Sys.vm' atendof fin_name) <> null then
-			sys_present := true
-			break
-		fi
-	od
-
 	try
-		#-- initiate the assempbly generator, providint the output file name, and weather or not to produce bootstrap code
-		#-- if Sys.vm is present, then product it, otherwise don't
-		asm_gen@@init(fout_name, sys_present)
+		#-- initiate the assempbly generator, providing the output file name
+		asm_gen@@init(fout_name)
 		io.writeline('Generating assembly to file "' & os.curdir() & fout_name & '".')
 	catch msg then
 		print(msg)
