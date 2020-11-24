@@ -1,0 +1,17 @@
+new_func := proc(name) is
+	func := [
+		'name' ~ name,
+		'dependancies' ~ {},
+		'asm' ~ '',
+	]
+
+	proc func@@depends(other) is
+		insert other into self.dependancies
+	end
+
+	proc func@@out(line) is
+		self.asm &:= if line = null then '' else line fi & '\n'
+	end
+
+	return func
+end

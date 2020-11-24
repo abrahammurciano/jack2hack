@@ -1,6 +1,7 @@
 run(vm2hack_dir & '/../lib/file_base_name')
 run(vm2hack_dir & '/label_maker')
 run(vm2hack_dir & '/function_checker')
+run(vm2hack_dir & '/func')
 
 asm_gen := [
 	seg_ptr_addr = [
@@ -13,14 +14,19 @@ asm_gen := [
 	function_checker = new_function_checker(),
 	current_file_base_name = null,
 	current_function = 'null',
-	first_function_name = null
+	first_function_name = null,
+	return_exists = false,
+	funcs = [
+		'$$bootstrap' ~ new_func('$$bootstrap')
+	]
 ]
 
 proc asm_gen@@init(fout_path, gen_bootstrap) is
 	gen_bootstrap := if gen_bootstrap = null then true else gen_bootstrap fi
 
 	self.fout_path := fout_path
-	self.fout := io.open(fout_path, 'w')
+
+	self@@set_function('$$bootstrap')
 
 	if gen_bootstrap then
 		self.first_function_name := 'Sys.init'
@@ -31,22 +37,48 @@ proc asm_gen@@init(fout_path, gen_bootstrap) is
 		self@@out('D=A')
 		self@@out('@SP')
 		self@@out('M=D')
-
-		#-- call Sys.init's entry point, labelled start (skips pushing stuff onto stack)
-		self@@out('@start')
-		self@@out('0;JMP')
 	fi
+
+	#-- call the first function's entry point, labelled $$start (skips pushing stuff onto stack)
+	self@@out('@$$start')
+	self@@out('0;JMP')
+end
+
+#-- calculates which functions can be reached by the program
+#-- must be called after all the vm code has been processed
+proc asm_gen@@used_functions(_) is
+	local used := {}
+	local queue := seq(self.first_function_name)
+	while size(queue) <> 0 do
+		local first := bottom(queue)
+		pop bottom from queue
+		skip when first in used
+		insert first into used
+		queue := queue union toseq(self.funcs[first].dependancies)
+	od
+	return used
 end
 
 proc asm_gen@@get_errors(_) is
 	errors := []
+	#-- check for undefined functions
 	for func in function_checker@@undefined_functions() do
 		insert 'Error: Call to undefined function "' & func & '".' into errors
 	od
 	return errors
 end
 
+#-- write the asm which was generated for each function to the output file
+proc asm_gen@@write_asm(_) is
+	io.writeline(self.fout, self.funcs['$$bootstrap'].asm)
+	for func in self@@used_functions() do
+		io.writeline(self.fout, self.funcs[func].asm)
+	od
+end
+
 proc asm_gen@@destruct(_) is
+	self.fout := io.open(self.fout_path, 'w')
+	self@@write_asm()
 	io.close(self.fout)
 end
 
@@ -65,8 +97,7 @@ proc asm_gen@@set_function(func_name) is
 end
 
 proc asm_gen@@out(str) is
-	str := if str then str else '' fi
-	io.writeline(self.fout, str)
+	self.funcs[self.current_function]@@out(str)
 end
 
 #-- convert from segment name to its address, as stored in self.seg_ptr_addr; e.g. from 'local' to 'LCL' or 1
@@ -458,6 +489,9 @@ end
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
+	#-- add the called function to the dependancies of this function
+	self.funcs[self.current_function]@@depends(func)
+
 	#-- let function_checker know that we are calling func
 	self.function_checker@@call(func)
 
@@ -494,16 +528,21 @@ proc asm_gen@@gen_function(func, n_vars) is
 	#-- if there was no bootstrap code, make the first encountered function the start point, and skip the step where it stores the previous function's state
 	if self.first_function_name = null then
 		self.first_function_name := func
-		self@@out('@start')
-		self@@out('0;JMP')
 	fi
 
-	#-- tell function_checker that func is being defined
-	self.function_checker@@def(func)
+	#-- check if function was already defined
+	if self.funcs[func] then
+		error('Error. Multiple definitions for function "' & func & '".')
+	fi
+	#-- create a function object
+	self.funcs[func] := new_func(func)
 
 	self@@out('// function ' & func & ' ' & n_vars)
 
 	self@@set_function(func)
+
+	#-- tell function_checker that func is being defined
+	self.function_checker@@def(func)
 
 	#-- make a label for this function
 	self@@out('(' & func & ')')
@@ -518,7 +557,7 @@ proc asm_gen@@gen_function(func, n_vars) is
 	#-- so we can jump straingt to here
 	#-- if there is only one file, there is no sys.init, so the first function will be called
 	if func = self.first_function_name then
-		self@@out('(start)')
+		self@@out('($$start)')
 	fi
 
 	#-- LCL = SP
@@ -552,6 +591,17 @@ end
 
 proc asm_gen@@gen_return(_) is
 	self@@out('// return')
+
+	#-- if the return code has already been generated once, jump there (because the return code can be reused)
+	if self.return_exists then
+		self@@out('@$$return')
+		self@@out('0;JMP')
+		return
+	fi
+
+	#-- otherwise, generate the code once
+	self@@out('($$return)')
+	self.return_exists := true
 
 	#-- save return address into R13 in case there are no args and the return value overwrites the RA
 	self@@restore('R13', 5)
