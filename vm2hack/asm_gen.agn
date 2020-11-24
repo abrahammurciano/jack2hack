@@ -1,5 +1,6 @@
 run(vm2hack_dir & '/../lib/file_base_name')
 run(vm2hack_dir & '/label_maker')
+run(vm2hack_dir & '/function_checker')
 
 asm_gen := [
 	seg_ptr_addr = [
@@ -9,6 +10,7 @@ asm_gen := [
 		'that' ~ 'THAT'
 	],
 	label_maker = new_label_maker(),
+	function_checker = new_function_checker(),
 	current_file_base_name = null,
 	current_function = 'null',
 	first_function_name = null
@@ -17,6 +19,7 @@ asm_gen := [
 proc asm_gen@@init(fout_path, gen_bootstrap) is
 	gen_bootstrap := if gen_bootstrap = null then true else gen_bootstrap fi
 
+	self.fout_path := fout_path
 	self.fout := io.open(fout_path, 'w')
 
 	if gen_bootstrap then
@@ -35,8 +38,21 @@ proc asm_gen@@init(fout_path, gen_bootstrap) is
 	fi
 end
 
+proc asm_gen@@get_errors(_) is
+	errors := []
+	for func in function_checker@@undefined_functions() do
+		insert 'Error: Call to undefined function "' & func & '".' into errors
+	od
+	return errors
+end
+
 proc asm_gen@@destruct(_) is
 	io.close(self.fout)
+end
+
+proc asm_gen@@abort(_) is
+	io.close(self.fout)
+	os.remove(self.fout_path)
 end
 
 proc asm_gen@@set_file_name(fin_path) is
@@ -442,6 +458,9 @@ end
 proc asm_gen@@gen_call(func, n_args) is
 	self@@out('// call ' & func & ' ' & n_args)
 
+	#-- let function_checker know that we are calling func
+	self.function_checker@@call(func)
+
 	local return_address := self.label_maker@@return_label(self.current_function)
 
 	#-- push return address onto stack
@@ -478,6 +497,9 @@ proc asm_gen@@gen_function(func, n_vars) is
 		self@@out('@start')
 		self@@out('0;JMP')
 	fi
+
+	#-- tell function_checker that func is being defined
+	self.function_checker@@def(func)
 
 	self@@out('// function ' & func & ' ' & n_vars)
 

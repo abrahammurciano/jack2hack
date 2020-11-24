@@ -62,7 +62,17 @@ main := proc() is
 		yrt
 	od
 
-	asm_gen@@destruct()
+	local errors := false
+	for error in asm_gen@@get_errors() do
+		print(error)
+		errors := true
+	od
+
+	if errors then
+		asm_gen@@abort()
+	else
+		asm_gen@@destruct()
+	fi
 end
 
 main()
