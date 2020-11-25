@@ -1,6 +1,10 @@
 class Main {
 	function void main () {
-		do Output.printString("Hello world");
+		var int grid_size;
+		let grid_size = Keyboard.readString("Choose a grid size [2-5]: ");
+		var Game game;
+		let game = Game.new(grid_size);
+		do game.init();
 		return;
 	}
 }

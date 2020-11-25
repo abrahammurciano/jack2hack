@@ -1,0 +1,10 @@
+class Game {
+	var Grid grid;
+	var int points;
+
+	constructor Game new(int grid_size) {
+
+	}
+
+
+}
