@@ -23,7 +23,7 @@ class Game {
 	method void print_state() {
 
 	}
-
+	// returns the input direction
 	method int input_direction() {
 		while (true) {
 			var direction;
