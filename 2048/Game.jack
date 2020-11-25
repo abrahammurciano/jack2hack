@@ -24,7 +24,15 @@ class Game {
 		// TODO
 	}
 
+	// returns the input direction
 	method int input_direction() {
-
+		while (true) {
+			var direction;
+			let direction = Keyboard.readChar();
+			let direction = direction - 130;
+			if(direction >= 0 | direction <= 3) {
+				return direction;
+			}
+		}
 	}
 }
