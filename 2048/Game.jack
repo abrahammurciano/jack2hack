@@ -1,10 +1,30 @@
 class Game {
 	var Grid grid;
 	var int points;
+	var int moves;
 
 	constructor Game new(int grid_size) {
+		let grid = Grid.new(grid_size);
+		let points = 0;
+		let moves = 0;
+	}
+
+	method void init() {
+		while(~grid.stuck()) {
+			do print_state();
+			var int direction;
+			let direction = input_direction()
+			if (grid.can_shift(direction)) {
+				let points = points + grid.shift(direction);
+			}
+		}
+	}
+
+	method void print_state() {
 
 	}
 
+	method int input_direction() {
 
+	}
 }
