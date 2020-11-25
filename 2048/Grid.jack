@@ -29,10 +29,6 @@ class Grid {
 
 	// returns weather or not the grid is in a position where it cannot move in any direction
 	method boolean stuck() {
-<<<<<<< HEAD
-		// TODO
-=======
 		return ~(can_shift(Directions.up()) | can_shift(Directions.down()) | can_shift(Directions.left()) | can_shift(Directions.right()))
->>>>>>> 63f0c234de66e3027ecba0d5f9b92628a581d1c0
 	}
 }
