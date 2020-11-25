@@ -1,6 +1,7 @@
 class Grid {
 	var Array grid;
 	var int size;
+	var RelGrid rel_grid;
 
 	// construct a square grid of size size
 	constructor Grid new(int size) {
@@ -12,22 +13,22 @@ class Grid {
 			let grid[i] = Array.new(size);
 			let i = i + 1;
 		}
+		let rel_grid = RelGrid.new(size);
 	}
 
 	// moves all tiles as far possible in the given direction
-	// direction = 0: down; 1: left; 2: up; 3: right;
 	// returns number of points gained
 	method int shift(int direction) {
-
+		// TODO
 	}
 
 	// returns whether or not the grid can be shifted in the given direction
 	method boolean can_shift(int direction) {
-
+		// TODO
 	}
 
 	// returns weather or not the grid is in a position where it cannot move in any direction
 	method boolean stuck() {
-
+		// TODO
 	}
 }

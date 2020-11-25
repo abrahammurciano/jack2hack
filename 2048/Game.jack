@@ -10,7 +10,7 @@ class Game {
 	}
 
 	method void init() {
-		while(~grid.stuck()) {
+		while (~grid.stuck()) {
 			do print_state();
 			var int direction;
 			let direction = input_direction()
@@ -21,7 +21,7 @@ class Game {
 	}
 
 	method void print_state() {
-
+		// TODO
 	}
 
 	method int input_direction() {

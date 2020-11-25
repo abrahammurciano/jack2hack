@@ -1,0 +1,14 @@
+class Coordinate {
+	var int x;
+	var int y;
+
+	constructor Coordinate default() {
+		let x = 0;
+		let y = 0;
+	}
+
+	constructor Coordinate new(int x, int y) {
+		let this.x = x;
+		let this.y = y;
+	}
+}
