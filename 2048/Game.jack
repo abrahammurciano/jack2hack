@@ -4,6 +4,7 @@ class Game {
 
 	constructor Game new(int grid_size) {
 
+
 	}
 
 

@@ -2,8 +2,16 @@ class Grid {
 	var Array grid;
 	var int size;
 
+	// construct a square grid of size size
 	constructor Grid new(int size) {
-
+		let this.size = size;
+		let grid = Array.new(size);
+		var int i;
+		let i = 0;
+		while (i < size) {
+			let grid[i] = Array.new(size);
+			let i = i + 1;
+		}
 	}
 
 	// moves all tiles as far possible in the given direction
