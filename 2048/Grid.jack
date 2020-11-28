@@ -16,19 +16,108 @@ class Grid {
 		let rel_grid = RelGrid.new(size);
 	}
 
-	// moves all tiles as far possible in the given direction
+	// moves all tiles as far as possible in the given direction without merging
+	method void move(int direction) {
+		var int x, y, lowest_empty, x0, y0, x1, y1;
+		let x = 0;
+		while (x < size) {
+			let lowest_empty = -1;
+			let y = 0;
+			while (y < size) {
+				let x0 = rel_grid[direction][x][y].x;
+				int y0 = rel_grid[direction][x][y].y;
+				if (grid[x0][y0] != 0) {
+					if (lowest_empty != -1) {
+						let x1 = rel_grid[direction][x][lowest_empty].x;
+						let y1 = rel_grid[direction][x][lowest_empty].y;
+						let grid[x1][y1] = grid[x0][y0];
+						let grid[x0][y0] = 0;
+						let lowest_empty = lowest_empty + 1;
+					}
+				} else if (lowest_empty == -1) {
+					let lowest_empty = y;
+				}
+				let y = y + 1;
+			}
+			let x = x + 1;
+		}
+	}
+
+	// joins all adjacent equal squares and returns the nubmer of points gained in the process
+	method int join(int direction) {
+		var int x, y, bottom_x, bottom_y, top_x, top_y, val, double_val, points;
+		let points = 0;
+		let x = 0;
+		while (x < size) {
+			let y = 0
+			while (y < size - 1;) {
+				let bottom_x = rel_grid[direction][x][y].x;
+				let bottom_y = rel_grid[direction][x][y].y;
+				let val = grid[bottom_x][bottom_y]
+				if (val != 0) {
+					let top_x = rel_grid[direction][x][y + 1].x;
+					let top_y = rel_grid[direction][x][y + 1].y;
+					if (val == grid[top_x][top_y]) {
+						let double_val = val * 2;
+						let grid[bottom_x][bottom_y] = double_val;
+						let grid[top_x][top_y] = 0;
+						let points = points + double_val;
+					}
+				}
+				let y = y + 1;
+			}
+			let x = x + 1;
+		}
+	}
+
+	// moves all tiles as far possible in the given direction, merging when appropriate
 	// returns number of points gained
 	method int shift(int direction) {
-		// TODO
+		var int points;
+		do move(direction);
+		let points = join(direction);
+		do move(direction);
+		return points;
+	}
+
+	// returns whether or not the grid has empty squares
+	method boolean has_empty() {
+		var int x, y;
+		let x = 0;
+		while (x < size) {
+			let y = 0;
+			while (y < size) {
+				if (grid[x][y] == 0) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	// returns whether or not the grid can be shifted in the given direction
 	method boolean can_shift(int direction) {
-		// TODO
+		// x and y iterate over the relative grid (skipping the bottom row)
+		var int x, y, curr_val, under_val;
+		var Coordinate curr, under;
+		let x = 0;
+		while (x < size) {
+			let y = 1;
+			while (y < size) {\
+				let curr = rel_grid[direction][x][y];
+				let under = rel_grid[direction][x][y - 1]
+				let curr_val = grid[curr.x][curr.y];
+				let under_val = grid[under.x][under.y];
+				if (curr_val != 0 & (under_val == 0 | under_val == curr_val)) {
+					return true;
+				}
+			}
+		}
+		return false;
 	}
 
 	// returns weather or not the grid is in a position where it cannot move in any direction
 	method boolean stuck() {
-		return ~(can_shift(Directions.up()) | can_shift(Directions.down()) | can_shift(Directions.left()) | can_shift(Directions.right()))
+		return ~(has_empty() | can_shift(Directions.up()) | can_shift(Directions.down()) | can_shift(Directions.left()) | can_shift(Directions.right()))
 	}
 }

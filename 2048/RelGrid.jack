@@ -4,15 +4,13 @@ class RelGrid {
 	// Define rel_grid as an array with 4 elements. Each element will contain a multidimensional array similar to grid just that instead of containing the number that goes in each square, it will contain coordinates to get the actual value from grid, just as if the rel_grid was rotated d times clockwise. The purpose of this variable is to be able to manipulate the grid in the same way, no matter which direction the user wants to click.
 	constructor RelGrid new(size) {
 		let rel_grid = Array.new(4); // One for each direction
-		var int d;
+		var int d, x, y;
 		let d = 0;
 		while (d < 4) {
 			let rel_grid[d] = Array.new(size);
-			var int x;
 			let x = 0;
 			while (x < size) {
 				let rel_grid[d][x] = Array.new(size);
-				var int y;
 				let y = 0;
 				while (y < size) {
 					let rel_grid[d][x][y] = Coordinate.default();
