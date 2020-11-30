@@ -1,6 +1,6 @@
 class Coordinate {
-	var int x;
-	var int y;
+	field int x;
+	field int y;
 
 	constructor Coordinate default() {
 		let x = 0;

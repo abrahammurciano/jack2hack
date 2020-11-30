@@ -1,7 +1,7 @@
 class Grid {
-	var Array grid;
-	var int size;
-	var RelGrid rel_grid;
+	field Array grid;
+	field int size;
+	field RelGrid rel_grid;
 
 	// construct a square grid of size size
 	constructor Grid new(int size) {

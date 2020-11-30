@@ -1,6 +1,6 @@
 class Game {
-	var Grid grid;
-	var int points, moves;
+	field Grid grid;
+	field int points, moves;
 
 	constructor Game new(int grid_size) {
 		let grid = Grid.new(grid_size);
