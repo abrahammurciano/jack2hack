@@ -1,0 +1,9 @@
+class Main {
+	function void main () {
+		do Screen.setColor(true);
+		do Screen.drawRectangle(127, 0, 255+128, 255);
+		do Screen.setColor(false);
+		do Output.printString("Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world Hello world ");
+		return;
+	}
+}

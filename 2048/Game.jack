@@ -1,26 +1,25 @@
 class Game {
 	field Grid grid;
 	field int points, moves;
+	field Printer printer;
 
 	constructor Game new(int grid_size) {
 		let grid = Grid.new(grid_size);
 		let points = 0;
 		let moves = 0;
+		let Printer = Printer.new(grid);
 	}
 
 	method void init() {
+		do printer.print();
 		while (~grid.stuck()) {
-			do print_state();
 			var int direction;
 			let direction = input_direction()
 			if (grid.can_shift(direction)) {
 				let points = points + grid.shift(direction);
+				do printer.print();
 			}
 		}
-	}
-
-	method void print_state() {
-		// TODO
 	}
 
 	// returns the input direction
