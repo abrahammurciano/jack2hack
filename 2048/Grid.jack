@@ -82,14 +82,64 @@ class Grid {
 		do insert_tile();
 		return points;
 	}
+	
+	// returns the number of empty squares in the graph
+	method int num_of_empty_squares() {
+		var int i, j, count;
+		let i = 0;
+		let j = 0;
+		let count = 0;
+		while (i < size) {
+			while (j < size) {
+				if (grid[i][j] == 0) {
+					let count = count + 1;
+					let j = j + 1;
+				}
+			}
+			let i = i + 1;
+		}
+		return count;
+	}
 
+	// returns the coordinates of a random empty square
+	method Coordinate rand_empty_square() {
+		var int num_empty, counter, i, j;
+		let num_empty = num_of_empty_squares();
+		let counter = randRange(num_empty-1);
+		let i = 0;
+		let j = 0;
+		let count = 0;
+		while (i < size) {
+			while (j < size) {
+				if (grid[i][j] == 0) {
+					let counter = counter - 1;
+					if (counter == 0) {
+						return Coordinate.new(i , j);
+					}
+					let j = j + 1;
+				}
+			}
+			let i = i + 1;
+		}
+		// if no square is empty return (-1, -1) but that should not happen
+		return Coordinate.new(-1, -1);
+	}
+
+	// function that gets a number to insert (either 2 or 4) and places it in a random empty square.
 	method void insert_tile() {
-		// TODO
+		var int num_to_insert;
+		var Coordinate c;
+		let num_to_insert = get_new_tile();
+		let c = grid.rand_empty_square();
+		let grid[c.x][c.y] = num_to_insert;
 	}
 
 	// return the value of a new tile to insert. 9/10 times will be 2, 1/10 times will be 4
 	method int get_new_tile() {
-		// TODO
+		if(randRange(9) == 4 ) {
+			return 4;
+		}
+		return 2;
 	}
 
 	// returns whether or not the grid has empty squares
