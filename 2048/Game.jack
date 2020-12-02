@@ -34,27 +34,35 @@ class Game {
 		// Clear Screen
 		do Utils.clear();
 		// Print Stats
-		do Output.printString("-----------------------------");
+		do Output.printString(Strings.get_stats_dashes());
 		do Output.println();
-		do Output.printString("Moves: ");
+		do Output.printString(Strings.get_moves());
 		do Output.printInt(moves);
 		do Output.println();
-		do Output.printString("Score: ");
+		do Output.printString(Strings.get_score());
 		do Output.printInt(points);
 		do Output.println();
-		do Output.printString("-----------------------------");
+		do Output.printString(Strings.get_stats_dashes());
 		do Output.println();
 		return;
 	}
 
 	// returns the input direction
 	method int input_direction() {
-		var int direction;
+		var int key;
 		while (true) {
-			let direction = Keyboard.readChar();
-			let direction = direction - 130;
-			if(~(direction < 0) | ~(direction > 3)) {
-				return direction;
+			let key = Keyboard.readChar();
+			if (key = 133) {
+				return Directions.down();
+			}
+			if (key = 130) {
+				return Directions.left();
+			}
+			if (key = 131) {
+				return Directions.up();
+			}
+			if (key = 132) {
+				return Directions.right();
 			}
 		}
 		return -1;

@@ -21,7 +21,7 @@ class Grid {
 
 	method void dispose() {
 		var int i;
-		Array arr;
+		var Array arr;
 		let i = 0;
 		while (i < size) {
 			let arr = grid[i];
@@ -31,6 +31,7 @@ class Grid {
 		do grid.dispose();
 		do rel_grid.dispose();
 		do Memory.deAlloc(this);
+		return;
 	}
 
 	// moves all tiles as far as possible in the given direction without merging
@@ -38,7 +39,7 @@ class Grid {
 		var int x, y, lowest_empty, x0, y0, x1, y1;
 		var Array rel_grid_dir, rel_grid_dir_x, grid_x0, grid_x1;
 		var Coordinate c;
-		let rel_grid_dir = rel_grid_dir;
+		let rel_grid_dir = rel_grid.direction(direction);
 		let x = 0;
 		while (x < size) {
 			let lowest_empty = -1;
@@ -74,16 +75,16 @@ class Grid {
 
 	// joins all adjacent equal squares and returns the nubmer of points gained in the process
 	method int join(int direction) {
-		var int x, y, bottom_x, bottom_y, top_x, top_y, val, double_val, points;
+		var int x, y, bottom_x, bottom_y, val, double_val, points;
 		var Array rel_grid_dir, rel_grid_dir_x, grid_bottom_x, grid_top_x;
 		var Coordinate c;
-		let rel_grid_dir = rel_grid_dir;
+		let rel_grid_dir = rel_grid.direction(direction);
 		let points = 0;
 		let x = 0;
 		while (x < size) {
 			let rel_grid_dir_x = rel_grid_dir[x];
 			let y = 0;
-			while (y < size - 1) {
+			while (y < (size - 1)) {
 				let c = rel_grid_dir_x[y];
 				let bottom_x = c.get_x();
 				let bottom_y = c.get_y();
@@ -91,13 +92,11 @@ class Grid {
 				let val = grid_bottom_x[bottom_y];
 				if (~(val = 0)) {
 					let c = rel_grid_dir_x[y + 1];
-					let top_x = c.get_x();
-					let top_y = c.get_y();
-					let grid_top_x = grid[top_x];
-					if (val = grid_top_x[top_y]) {
+					let grid_top_x = grid[c.get_x()];
+					if (val = grid_top_x[c.get_y()]) {
 						let double_val = val * 2;
 						let grid_bottom_x[bottom_y] = double_val;
-						let grid_top_x[top_y] = 0;
+						let grid_top_x[c.get_y()] = 0;
 						let points = points + double_val;
 					}
 				}
@@ -120,7 +119,7 @@ class Grid {
 	}
 
 	// returns the number of empty squares in the graph
-	method int num_of_empty_squares() {
+	method int empty_squares() {
 		var int i, j, count;
 		var Array grid_i;
 		let i = 0;
@@ -131,8 +130,8 @@ class Grid {
 				let grid_i = grid[i];
 				if (grid_i[j] = 0) {
 					let count = count + 1;
-					let j = j + 1;
 				}
+				let j = j + 1;
 			}
 			let i = i + 1;
 		}
@@ -141,39 +140,36 @@ class Grid {
 
 	// returns the coordinates of a random empty square
 	method Coordinate rand_empty_square() {
-		var int num_empty, counter, i, j;
+		var int empty, counter, i, j;
 		var Array grid_i;
-		let num_empty = num_of_empty_squares();
-		let counter = Random.randRange(0, num_empty - 1);
+		let empty = empty_squares();
+		let counter = Random.randRange(0, empty - 1);
 		let i = 0;
 		let j = 0;
-		let counter = 0;
 		while (i < size) {
 			while (j < size) {
 				let grid_i = grid[i];
 				if (grid_i[j] = 0) {
-					let counter = counter - 1;
 					if (counter = 0) {
 						return Coordinate.new(i , j);
 					}
-					let j = j + 1;
+					let counter = counter - 1;
 				}
+				let j = j + 1;
 			}
 			let i = i + 1;
 		}
-		// if no square is empty return (-1, -1) but that should not happen
-		return Coordinate.new(-1, -1);
+		// if no square is empty return (0, 0) but that should not happen
+		return Coordinate.new(0, 0);
 	}
 
 	// function that gets a number to insert (either 2 or 4) and places it in a random empty square.
 	method void insert_tile() {
-		var int num_to_insert;
 		var Array grid_x;
 		var Coordinate c;
-		let num_to_insert = get_new_tile();
 		let c = rand_empty_square();
 		let grid_x = grid[c.get_x()];
-		let grid_x[c.get_y()] = num_to_insert;
+		let grid_x[c.get_y()] = get_new_tile();
 		do c.dispose();
 		return;
 	}
@@ -198,7 +194,9 @@ class Grid {
 				if (grid_x[y] = 0) {
 					return true;
 				}
+				let y = y + 1;
 			}
+			let x = x + 1;
 		}
 		return false;
 	}
@@ -209,7 +207,7 @@ class Grid {
 		var int x, y, curr_val, under_val;
 		var Array rel_grid_dir, rel_grid_dir_x, grid_curr_x, grid_under_x;
 		var Coordinate curr, under;
-		let rel_grid_dir = rel_grid_dir;
+		let rel_grid_dir = rel_grid.direction(direction);
 		let x = 0;
 		while (x < size) {
 			let rel_grid_dir_x = rel_grid_dir[x];
@@ -221,10 +219,12 @@ class Grid {
 				let curr_val = grid_curr_x[curr.get_y()];
 				let grid_under_x = grid[under.get_x()];
 				let under_val = grid_under_x[under.get_y()];
-				if (~(curr_val = 0) & (under_val = 0 | under_val = curr_val)) {
+				if (~(curr_val = 0) & ((under_val = 0) | (under_val = curr_val))) {
 					return true;
 				}
+				let y = y + 1;
 			}
+			let x = x + 1;
 		}
 		return false;
 	}
@@ -239,10 +239,10 @@ class Grid {
 		var Array grid_y;
 
 		// Print Grid
-		do Output.printString(" ______");
+		do Output.printString(Strings.get_underscores_1());
 		let i = 1;
 		while (i < size) {
-			do Output.printString("_______");
+			do Output.printString(Strings.get_underscores_2());
 			let i = i + 1;
 		}
 		do Output.println();
@@ -250,10 +250,10 @@ class Grid {
 		while (x < size) {
 			let i = 0;
 			while (i < size) {
-				do Output.printString("|      ");
+				do Output.printString(Strings.get_bar_with_spaces());
 				let i = i + 1;
 			}
-			do Output.printString("|");
+			do Output.printString(Strings.get_bar());
 			do Output.println();
 			let y = 0;
 			while (y < size) {
@@ -262,36 +262,36 @@ class Grid {
 				let value = grid_y[size - 1 - x];
 				let length = Utils.digits(value);
 				let i = 1;
-				do Output.printString("|");
-				do Output.printString(" ");
+				do Output.printString(Strings.get_bar());
+				do Output.printString(Strings.get_space());
 				if (length < 4){
-					do Output.printString(" ");
+					do Output.printString(Strings.get_space());
 				}
 				if (length < 2) {
-					do Output.printString(" ");
+					do Output.printString(Strings.get_space());
 				}
 				if (~(value = 0)) {
 					do Output.printInt(value);
 				}
 				if (length < 5) {
-					do Output.printString(" ");
+					do Output.printString(Strings.get_space());
 				}
 				if (length < 3) {
-					do Output.printString(" ");
+					do Output.printString(Strings.get_space());
 				}
 				if (length < 1) {
-					do Output.printString(" ");
+					do Output.printString(Strings.get_space());
 				}
 				let y = y + 1;
 			}
-			do Output.printString("|");
+			do Output.printString(Strings.get_bar());
 			do Output.println();
 			let i = 0;
 			while (i < size) {
-				do Output.printString("|______");
+				do Output.printString(Strings.get_bar_with_underscores());
 				let i = i + 1;
 			}
-			do Output.printString("|");
+			do Output.printString(Strings.get_bar());
 			do Output.println();
 			let x = x + 1;
 		}
