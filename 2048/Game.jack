@@ -1,36 +1,68 @@
 class Game {
 	field Grid grid;
 	field int points, moves;
-	field Printer printer;
 
 	constructor Game new(int grid_size) {
 		let grid = Grid.new(grid_size);
 		let points = 0;
 		let moves = 0;
-		let Printer = Printer.new(grid);
+		return this;
 	}
 
 	method void init() {
-		do printer.print();
+		var int direction;
+		do print_state();
+		do grid.print();
 		while (~grid.stuck()) {
-			var int direction;
-			let direction = input_direction()
+			let direction = input_direction();
 			if (grid.can_shift(direction)) {
 				let points = points + grid.shift(direction);
-				do printer.print();
+				do print_state();
+				do grid.print();
 			}
 		}
+		return;
+	}
+
+	method void print_state() {
+		// Clear Screen
+		do Utils.clear();
+		// Print Stats
+		do Output.printString("-----------------------------");
+		do Output.println();
+		do Output.printString("Moves: ");
+		do Output.printInt(moves);
+		do Output.println();
+		do Output.printString("Score: ");
+		do Output.printInt(points);
+		do Output.println();
+		do Output.printString("-----------------------------");
+		do Output.println();
+		return;
 	}
 
 	// returns the input direction
 	method int input_direction() {
+		var int direction;
 		while (true) {
-			var direction;
 			let direction = Keyboard.readChar();
 			let direction = direction - 130;
-			if(direction >= 0 | direction <= 3) {
+			if(~(direction < 0) | ~(direction > 3)) {
 				return direction;
 			}
 		}
+		return -1;
+	}
+
+	method int get_moves() {
+		return moves;
+	}
+
+	method int get_points() {
+		return points;
+	}
+
+	method int get_grid() {
+		return grid;
 	}
 }

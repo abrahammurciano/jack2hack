@@ -5,10 +5,30 @@ class Coordinate {
 	constructor Coordinate default() {
 		let x = 0;
 		let y = 0;
+		return this;
 	}
 
-	constructor Coordinate new(int x, int y) {
-		let this.x = x;
-		let this.y = y;
+	constructor Coordinate new(int _x, int _y) {
+		let x = _x;
+		let y = _y;
+		return this;
+	}
+
+	method int get_x() {
+		return x;
+	}
+
+	method int get_y() {
+		return y;
+	}
+
+	method void set_x(int _x) {
+		let x = _x;
+		return;
+	}
+
+	method void set_y(int _y) {
+		let y = _y;
+		return;
 	}
 }
