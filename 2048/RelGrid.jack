@@ -37,4 +37,10 @@ class RelGrid {
 		}
 		return this;
 	}
+
+	method void dispose() {
+		// TODO
+		do Memory.deAlloc(this);
+		return;
+	}
 }

@@ -19,6 +19,20 @@ class Grid {
 		return this;
 	}
 
+	method void dispose() {
+		var int i;
+		Array arr;
+		let i = 0;
+		while (i < size) {
+			let arr = grid[i];
+			do arr.dispose();
+			let i = i + 1;
+		}
+		do grid.dispose();
+		do rel_grid.dispose();
+		do Memory.deAlloc(this);
+	}
+
 	// moves all tiles as far as possible in the given direction without merging
 	method void move(int direction) {
 		var int x, y, lowest_empty, x0, y0, x1, y1;
@@ -160,6 +174,7 @@ class Grid {
 		let c = rand_empty_square();
 		let grid_x = grid[c.get_x()];
 		let grid_x[c.get_y()] = num_to_insert;
+		do c.dispose();
 		return;
 	}
 

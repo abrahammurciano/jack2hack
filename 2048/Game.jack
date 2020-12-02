@@ -9,6 +9,12 @@ class Game {
 		return this;
 	}
 
+	method void dispose() {
+		do grid.dispose();
+		do Memory.deAlloc(this);
+		return;
+	}
+
 	method void init() {
 		var int direction;
 		do print_state();
