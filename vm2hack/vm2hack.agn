@@ -13,7 +13,7 @@ run(vm2hack_dir & '/parser')
 
 main := proc() is
 	#-- get names of input and output files from command line args
-	local fin_names, fout_name := parse_args('asm')
+	local fin_names, fout_name := parse_args()
 
 	if size(fin_names) = 0 then
 		print('No input files given. No assembly will be produced.')

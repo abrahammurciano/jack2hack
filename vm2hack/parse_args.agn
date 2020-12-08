@@ -3,8 +3,7 @@ if not parse_args then
 	#-- function that reads args for an input file and optionally an output file
 	#-- if no input file is provided, an error is thrown
 	#-- if no output file is provided, one is assumed (same location and base name as input file)
-	#-- ext is a string with the output file extension to use if no output file is provided (without preceding period)
-	#-- returns an input and output file name
+	#-- returns a list of input file names and an output file name
 	parse_args := proc() is
 		local path_in := os.realpath(args[1] or '.')
 		local path_out := args[2]

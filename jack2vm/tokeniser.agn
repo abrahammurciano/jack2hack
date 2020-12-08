@@ -1,0 +1,10 @@
+new_tokeniser := proc(in_file, out_file) is
+	tokeniser := []
+
+	proc tokeniser@@tokenise(_) is
+		#-- TODO
+		print(in_file, out_file)
+	end
+
+	return tokeniser
+end

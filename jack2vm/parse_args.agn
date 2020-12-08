@@ -1,0 +1,35 @@
+if not parse_args then
+
+	#-- function that reads args for an input directory and optionally an output directory
+	#-- if no input dir is provided, an error is thrown
+	#-- if no output dir is provided, one is assumed (same as input dir)
+	#-- returns a list of input file names and an output directory
+	parse_args := proc() is
+		local path_in := os.realpath(args[1] or '.')
+		local path_out := os.realpath(args[2] or path_in)
+
+		if path_in = fail then
+			error('File or directory "' & path_in & '" not found.')
+		fi
+
+		if path_out = fail then
+			error('File or directory "' & path_in & '" not found.')
+		fi
+
+		if not os.isdir(path_in) then
+			error('Input path "' & path_in & '" must be a directory')
+		fi
+
+		if not os.isdir(path_out) then
+			error('Output path "' & path_out & '" must be a directory')
+		fi
+
+		local files := os.list(path_in, '*.jack')
+		local paths := []
+		for i, file in files do
+			paths[i] := path_in & '/' & file
+		od
+		return paths, path_out
+	end
+
+fi
