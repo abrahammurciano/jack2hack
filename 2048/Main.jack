@@ -2,9 +2,12 @@ class Main {
 	function void main () {
 		var int grid_size;
 		var Game game;
-		let grid_size = Keyboard.readString("Choose a grid size [2-5]: ");
+		do Random.setSeed(1);
+		do Strings.init();
+		let grid_size = Keyboard.readInt("Choose a grid size [2-5]: ");
 		let game = Game.new(grid_size);
 		do game.init();
+		do game.dispose();
 		return;
 	}
 }
