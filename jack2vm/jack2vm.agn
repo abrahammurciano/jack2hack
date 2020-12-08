@@ -10,8 +10,17 @@ main := proc() is
 	#-- get names of input and output files from command line args
 	local file_names, out_dir := parse_args()
 
-	for file_name in file_names do
-		new_tokeniser(file_name, out_dir & '/' & file_base_name(file_name) & '.tokenised.xml')@@tokenise()
+	local tokenised_files := []
+	local parsed_files := []
+
+	for i, file_name in file_names do
+		#-- tokenise the file
+		tokenised_files[i] := out_dir & '/' & file_base_name(file_name) & '.tokenised.xml'
+		new_tokeniser(file_name, tokenised_files[i])@@tokenise()
+
+		#-- parse the file
+		tokenised_files[i] := out_dir & '/' & file_base_name(file_name) & '.parsed.xml'
+		new_parser(tokenised_files[i], parsed_files[i])@@parse()
 	od
 end
 

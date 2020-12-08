@@ -1,0 +1,10 @@
+new_parser := proc(in_file, out_file) is
+	parser := []
+
+	proc parser@@parse(_) is
+		#-- TODO
+		print(in_file, out_file)
+	end
+
+	return parser
+end
