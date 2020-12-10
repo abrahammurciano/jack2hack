@@ -1,32 +1,53 @@
 new_tokeniser := proc(in_file, out_file) is
 	local tokeniser := [
-		keywords = {'class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this', 'let', 'do', 'if', 'else', 'while', 'return'},
-	local symbols = {}
+		keywords = {
+			'class',
+			'constructor',
+			'function',
+			'method',
+			'field',
+			'static',
+			'var',
+			'int',
+			'char',
+			'boolean',
+			'void',
+			'true',
+			'false',
+			'null',
+			'this',
+			'let',
+			'do',
+			'if',
+			'else',
+			'while',
+			'return'
+		},
+		symbols = {}
 	]
 
 	proc tokeniser@@tokenise(_) is
 		#-- open in_file to read
-		fin := io.open(in_file, r)
+		local fin := io.open(in_file, r)
 		#-- open out_file to write
-		fout := io.open(out_file, w)
+		local fout := io.open(out_file, w)
 
-		# open tokeniser
+		#-- open tokeniser
 		io.write(fout, '<tokens>\n')
 		local curr_char := fin.read()
 		while(next_char := fin.read()) do
-
 			io.write(fout,'\t<',tt,'>',tv,'</',tt,'>\n')
 			curr_char := next_char
 		od
-		# close tokeniser
+		#-- close tokeniser
 		io.write(fin, '</tokens>')
 		io.close(fout)
 		io.close(fin)
 	end
 
 	proc tokeniser@@read_token(_) is
-		current_input := io.read(in_file, 1)
-		next_input := io.read(in_file, 1)
+		local current_input := io.read(in_file, 1)
+		local next_input := io.read(in_file, 1)
 
 	end
 
