@@ -1,9 +1,36 @@
+import xml
+
 new_parser := proc(in_file, out_file) is
-	parser := []
+	parser := [
+		'fout' ~ io.open(out_file, 'w'),
+		'tokens' ~ [],
+		'indent_str' ~ '\t',
+		'indentation' ~ 0,
+	]
+
+	#-- returns an array of type:value pairs from the tokenised XML file
+	for i, tag in xml.decode(io.readfile(in_file)) do
+		skip when not isnumber(i)
+		skip when not istable(tag)
+		local t_type := tag.label
+		local t_value := tag[1]
+		parser.tokens[size(parser.tokens) + 1] := t_type:t_value
+	od
+
+	proc parser@@out(s) is
+		io.writeline(fout, strings.repeat(self.indent_str, self.indentation) & s)
+	end
 
 	proc parser@@parse(_) is
-		#-- TODO
-		print(in_file, out_file)
+		self@@compile_class()
+	end
+
+	proc parser@@compile_class(_) is
+		self@@out('<class>')
+		self.indentation +:= 1
+		self@@eat('class')
+		self@@compile_class_name()
+		self@@eat('{')
 	end
 
 	return parser
