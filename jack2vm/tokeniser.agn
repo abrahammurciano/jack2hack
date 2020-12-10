@@ -24,8 +24,8 @@ new_tokeniser := proc(in_file, out_file) is
 			'return'
 		},
 		symbols = {},
-		fin = io.open(in_file, r),
-		fout = io.open(out_file, w)
+		fin = io.open(in_file, 'r'),
+		fout = io.open(out_file, 'w')
 	]
 
 	proc tokeniser@@tokenise(_) is
