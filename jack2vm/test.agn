@@ -1,0 +1,4 @@
+run 'parser'
+
+parser := new_parser('test.tokenised.xml', 'test.parsed.xml')
+parser@@parse()

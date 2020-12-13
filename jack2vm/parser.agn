@@ -1,36 +1,137 @@
 import xml
 
-new_parser := proc(in_file, out_file) is
+new_parser := proc(in_file, out_file, indent_str) is
 	parser := [
 		'fout' ~ io.open(out_file, 'w'),
-		'tokens' ~ [],
-		'indent_str' ~ '\t',
+		'tokens' ~ [],	#-- array of type:value pairs
+		'indent_str' ~ indent_str or '\t',
 		'indentation' ~ 0,
 	]
 
 	#-- returns an array of type:value pairs from the tokenised XML file
-	for i, tag in xml.decode(io.readfile(in_file)) do
+	local file_contents := xml.decode(io.readfile(in_file))
+	if file_contents = null then
+		error('Error parsing XML file "' & in_file & '".')
+	fi
+
+	for i, tag in file_contents do
 		skip when not isnumber(i)
 		skip when not istable(tag)
 		local t_type := tag.label
-		local t_value := tag[1]
+		local t_value := trim(tag[1])
 		parser.tokens[size(parser.tokens) + 1] := t_type:t_value
 	od
 
+	#-- write some string in the out file
+	#-- indents it according to the indentation class fields
 	proc parser@@out(s) is
-		io.writeline(fout, strings.repeat(self.indent_str, self.indentation) & s)
+		print('starring 2.1.1...')
+		io.writeline(self.fout, strings.repeat(self.indent_str, self.indentation) & s)
+		print('starring 2.1.2...')
+	end
+
+	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
+	proc parser@@print_token(t) is
+		self@@out('<' & t[1] & '> ' & t[2] & ' </' & t[1] & '>')
 	end
 
 	proc parser@@parse(_) is
 		self@@compile_class()
 	end
 
+	#-- pop a token and return its value if it matches one of the given parameters (strings) otherwise returns fail
+	proc parser@@eat(_, ?) is
+		varargs := varargs or []
+		insert _ into varargs
+		local token := bottom(self.tokens)
+		for s in varargs do
+			if isstring(s) and token[2] == s then
+				self@@print_token(token)
+				pop bottom from self.tokens
+				return s
+			fi
+		od
+		error('Expected one of ' & tostringx(varargs) & '. Instead saw "' & token[2] & '".')
+	end
+
+	#-- if the current token is an identifier, pop it and return its name, otherwise fail
+	proc parser@@eat_identifier(_) is
+		local token := bottom(self.tokens)
+		if token[1] = 'identifier' then
+			return self@@eat(token[2])
+		fi
+		error('Expected an identifier. Instead saw the ' & token[1] & ' "' & token[2] & '".')
+	end
+
+	#-- call func as many times as possible until it throws an error
+	proc parser@@star(func) is
+		print('starring 1...')
+		try
+			do
+				print('starring 2...')
+				func()
+				print('starring 3...')
+			od
+		catch
+		yrt
+	end
+
 	proc parser@@compile_class(_) is
 		self@@out('<class>')
-		self.indentation +:= 1
+		inc self.indentation
+		print(self.tokens)
 		self@@eat('class')
+		print(self.tokens)
 		self@@compile_class_name()
 		self@@eat('{')
+		self@@star(self.compile_class_var)
+		#self@@star(self.compile_subroutine)
+		self@@eat('}')
+		dec self.indentation
+		self@@out('</class>')
+	end
+
+	proc parser@@compile_class_name(_) is
+		self@@eat_identifier()
+	end
+
+	proc parser@@compile_class_var(_) is
+		print('starring 2.1...')
+		self@@out('<classVarDec>')
+		print('starring 2.2...')
+		inc self.indentation
+		self@@eat('field', 'static')
+		self@@compile_type()
+		self@@compile_var_name()
+		local compile_more_vars := proc() is
+			self@@eat(',')
+			self@@compile_var_name()
+		end
+		self@@star(compile_more_vars)
+		self@@eat(';')
+		dec self.indentation
+		self@@out('</classVarDec>')
+	end
+
+	proc parser@@compile_type(_) is
+		try
+			self@@eat('int', 'char', 'boolean')
+		catch
+			try
+				self@@eat_identifier()
+			catch
+				local token := bottom(self.tokens)
+				error('Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')
+			yrt
+		yrt
+	end
+
+	proc parser@@compile_var_name(_) is
+		self@@eat_identifier()
+	end
+
+	proc parser@@compile_subroutine(_) is
+		#-- TODO
 	end
 
 	return parser
