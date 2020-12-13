@@ -23,7 +23,27 @@ new_tokeniser := proc(in_file, out_file) is
 			'while',
 			'return'
 		},
-		symbols = {},
+		symbols = {
+			'{',
+			'}',
+			'(',
+			')',
+			'[',
+			']',
+			'.',
+			',',
+			';',
+			'+',
+			'-',
+			'*',
+			'/',
+			'&',
+			'|',
+			'<',
+			'>',
+			'=',
+			'~'
+		},
 		fin = io.open(in_file, 'r'),
 		fout = io.open(out_file, 'w')
 	]
@@ -31,9 +51,87 @@ new_tokeniser := proc(in_file, out_file) is
 	proc tokeniser@@tokenise(_) is
 		#-- open tokeniser
 		io.write(self.fout, '<tokens>\n')
-		local curr_char := self.fin.read()
-		while(next_char := self.fin.read()) do
-			io.write(self.fout,'\t<',tt,'>',tv,'</',tt,'>\n')
+		local curr_char := io.read(self.fin)
+		while (next_char := io.read(self.fin)) do
+			#-- if char is comment
+			if (curr_char = '/') then
+				#-- till end of line
+				if (next_char = '/') then
+					do
+						next_char := io.read(self.fin)
+						if (next_char = '\n') then
+							break
+						fi
+					od
+				elif (next_char = '*') then
+					do
+						next_char := io.read(self.fin)
+						if (curr_char = '*' and next_char = '/') then
+							next_char := io.read(self.fin)
+							break
+						fi
+						curr_char := next_char
+					od
+				fi
+
+			#-- if char is a symbol
+			elif (curr_char in symbols) then
+				io.write(self.fout,'\t<symbol> ',curr_char,' </symbol>\n')
+
+			#-- if char is a string
+			elif (curr_char = '"') then
+				#-- create local string
+				local str := ''
+				#-- if immediate end of string, break
+				if (next_char = '"') then
+					break
+				fi
+				str &:= next_char
+				while (next_char := io.read(self.fin)) do
+					if (next_char = '"') then
+						break
+					fi
+					str &:= next_char
+				od
+				io.write(self.fout,'\t<stringConstant> ',str,' </stringConstant>\n')
+
+			#-- if char is digit
+			elif (curr_char in digits) then
+				local num := ''
+				num &:= curr_char
+				#-- if immediate end of number, break
+				if (next_char in digits) then
+					str &:= next_char
+					while (next_char := io.read(self.fin)) do
+						if (next_char in digits) then
+							num &:= next_char
+						else
+							break
+						fi
+					od
+				fi
+				io.write(self.fout,'\t<intConstant> ',num,' </intConstant>\n')
+
+			#-- if char is identifier
+			elif (curr_char.isalphanumeric) then
+				local alphanum := ''
+				alphanum &:= curr_char
+				if (next_char.isalphanumeric) then
+					alphanum &:= next_char
+					while (next_char := io.read(self.fin)) do
+						if next_char.isalphanumeric) then
+							alphanum &:= next_char
+						else
+							break
+						fi
+					do
+				fi
+				#--check to see if identifier is keyword
+				if (alphanum in keywords) then
+					io.write(self.fout,'\t<keyword> ',alphanum,' </keyword>\n')
+				else
+					io.write(self.fout,'\t<identifier> ',alphanum,' </identifier>\n')
+			fi
 			curr_char := next_char
 		od
 		#-- close tokeniser
