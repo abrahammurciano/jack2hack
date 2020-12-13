@@ -82,6 +82,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		error('Unexpected token: Expected an identifier. Instead saw the ' & token[1] & ' "' & token[2] & '".')
 	end
 
+
 	#-- call func as many times as possible until it throws an error
 	proc parser@@zero_or_more(func) is
 		local helper := proc() is
@@ -234,8 +235,131 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@close_tag()
 	end
 
+	#-- <statement>*
+	proc parser@@compile_statements(_) is
+		self@@open_tag('statements')
+		self@@zero_or_more(self.compile_statement)
+		self@@close_tag()
+	end
+
+	#-- {<let>|<if>|<while>|<do>|<return>}
+	proc parser@@compile_statement(_) is
+		for func in {self.compile_let, self.compile_if, self.compile_while, self.compile_do, self.compile_return} do
+			try
+				func(self)
+				return
+			catch msg then
+				if not strings.isabbrev(msg, 'Unexpected token:', true) then
+					error(msg)
+				fi
+			yrt
+		od
+	end
+
+	#-- 'let' <var_name> <index>? '=' <expr> ';'
+	proc parser@@compile_let(_) is
+		self@@assert_edible('let')
+		self@@open_tag('letStatement')
+		self@@eat('let')
+		self@@compile_var_name()
+		self@@zero_or_one(self.compile_index)
+		self@@eat('=')
+		self@@compile_expr()
+		self@@eat(';')
+		self@@close_tag()
+	end
+
+	#-- '[' <expr> ']'
+	proc parser@@compile_index(_) is
+		self@@eat('[')
+		self@@compile_expr()
+		self@@eat(']')
+	end
+
+	#-- 'if' '(' <expr> ')' '{' <statements> '}' <else>?
+	proc parser@@compile_if(_) is
+		self@@assert_edible('if')
+		self@@open_tag('ifStatement')
+		self@@eat('if')
+		self@@eat('(')
+		self@@compile_expr()
+		self@@eat(')')
+		self@@eat('{')
+		self@@compile_statements()
+		self@@eat('}')
+		self@@zero_or_one(self.compile_else)
+		self@@close_tag()
+	end
+
+	#-- 'else' '{' <statements> '}'
+	proc parser@@copmile_else(_) is
+		self@@eat('else')
+		self@@eat('{')
+		self@@compile_statements()
+		self@@eat('}')
+	end
+
+	#-- 'while' '(' <expr> ')' '{' <statements> '}'
+	proc parser@@compile_while(_) is
+		self@@assert_edible('while')
+		self@@open_tag('whileStatement')
+		self@@eat('while')
+		self@@eat('(')
+		self@@compile_expr()
+		self@@eat(')')
+		self@@eat('{')
+		self@@compile_statements()
+		self@@eat('}')
+		self@@close_tag()
+	end
+
+	#-- 'do' <call> ';'
+	proc parser@@compile_do(_) is
+		self@@assert_edible('do')
+		self@@open_tag('doStatement')
+		self@@eat('do')
+		self@@compile_call()
+		self@@eat(';')
+		self@@close_tag()
+	end
+
+	#-- 'return' <expr>? ';'
+	proc parser@@compile_do(_) is
+		self@@assert_edible('return')
+		self@@open_tag('returnStatement')
+		self@@eat('return')
+		self@@zero_or_one(self.compile_expr)
+		self@@eat(';')
+		self@@close_tag()
+	end
+
+	#-- <term> (<op> <term>)?
+	proc parser@@compile_expr(_) is
+		self@@assert_expr_beginning()
+		self@@open_tag('expression')
+		self@@compile_term()
+		local compile_more_terms := proc() is
+			self@@compile_op()
+			self@@compile_term()
+		end
+		self@@zero_or_one(compile_more_terms)
+		self@@close_tag()
+	end
+
+	proc parser@@assert_expr_beginning(_) is
+		local token := bottom(this.tokens)
+		if not (token[1] in {'integerConstant', 'stringConstant', 'identifier'} or token[2] in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
+			error('Unexpected token: Expected a constant or identifier but instead saw ' & token[2])
+		fi
+	end
+
 	#--
-	proc parser@@compile_statements() is
+	proc parser@@compile_term(_) is
+		#-- TODO
+	end
+
+	#--
+	proc parser@@compile_call(_) is
 		#-- TODO
 	end
 
