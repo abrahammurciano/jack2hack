@@ -6,6 +6,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		'tokens' ~ [],	#-- array of type:value pairs
 		'indent_str' ~ indent_str or '\t',
 		'indentation' ~ 0,
+		'tag_stack' ~ []
 	]
 
 	#-- returns an array of type:value pairs from the tokenised XML file
@@ -25,9 +26,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- write some string in the out file
 	#-- indents it according to the indentation class fields
 	proc parser@@out(s) is
-		print('starring 2.1.1...')
 		io.writeline(self.fout, strings.repeat(self.indent_str, self.indentation) & s)
-		print('starring 2.1.2...')
 	end
 
 	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
@@ -51,7 +50,27 @@ new_parser := proc(in_file, out_file, indent_str) is
 				return s
 			fi
 		od
-		error('Expected one of ' & tostringx(varargs) & '. Instead saw "' & token[2] & '".')
+		error('Unexpected token: Expected one of ' & tostringx(varargs) & '. Instead saw "' & token[2] & '".')
+	end
+
+	#-- returns weather or not eat(...) will fail
+	proc parser@@edible(expected_strings) is
+		local token := bottom(self.tokens)
+		for s in expected_strings do
+			if isstring(s) and token[2] == s then
+				return true, s
+			fi
+		od
+		return false, token[2]
+	end
+
+	proc parser@@assert_edible(_, ?) is
+		varargs := varargs or []
+		insert _ into varargs
+		local edible, seen_token := self@@edible(varargs)
+		if not edible then
+			error('Unexpected token: Expected one of ' & tostringx(varargs) & '. Instead saw "' & seen_token & '".')
+		fi
 	end
 
 	#-- if the current token is an identifier, pop it and return its name, otherwise fail
@@ -60,77 +79,160 @@ new_parser := proc(in_file, out_file, indent_str) is
 		if token[1] = 'identifier' then
 			return self@@eat(token[2])
 		fi
-		error('Expected an identifier. Instead saw the ' & token[1] & ' "' & token[2] & '".')
+		error('Unexpected token: Expected an identifier. Instead saw the ' & token[1] & ' "' & token[2] & '".')
 	end
 
 	#-- call func as many times as possible until it throws an error
-	proc parser@@star(func) is
-		print('starring 1...')
+	proc parser@@zero_or_more(func) is
+		self@@zero_or_one(<< (func) -> do func(self) od >>)
+	end
+
+	#-- call func once, and catch an error if it is an Unexpected token error
+	proc parser@@zero_or_one(func) is
 		try
-			do
-				print('starring 2...')
-				func()
-				print('starring 3...')
-			od
-		catch
+			func(self)
+		catch msg then
+			if not strings.isabbrev(msg, 'Unexpected token:', true) then
+				error(msg)
+			fi
 		yrt
 	end
 
-	proc parser@@compile_class(_) is
-		self@@out('<class>')
+	#-- opens an xml tag and stored its name on a stack
+	proc parser@@open_tag(tag_name) is
+		self@@out('<' & tag_name & '>')
+		insert tag_name into self.tag_stack
 		inc self.indentation
-		print(self.tokens)
-		self@@eat('class')
-		print(self.tokens)
-		self@@compile_class_name()
-		self@@eat('{')
-		self@@star(self.compile_class_var)
-		#self@@star(self.compile_subroutine)
-		self@@eat('}')
-		dec self.indentation
-		self@@out('</class>')
 	end
 
+	#-- closes the xml tag on the top of the stack, and pops it
+	proc parser@@close_tag() is
+		self@@out('</' & top(self.tag_stack) & '>')
+		pop top from self.tag_stack
+		dec self.indentation
+	end
+
+	#-- 'class' <class_name> '{' <class_var>* <subroutine>* '}'
+	proc parser@@compile_class(_) is
+		self@@assert_edible('class')
+		self@@open_tag('class')
+		self@@eat('class')
+		self@@compile_class_name()
+		self@@eat('{')
+		self@@zero_or_more(self.compile_class_var)
+		self@@zero_or_more(self.compile_subroutine)
+		self@@eat('}')
+		self@@close_tag()
+	end
+
+	#-- any identifier is a valid class name
 	proc parser@@compile_class_name(_) is
 		self@@eat_identifier()
 	end
 
+	#-- {'static'|'field'} <type> <var_name> <more_vars>* ';'
 	proc parser@@compile_class_var(_) is
-		print('starring 2.1...')
-		self@@out('<classVarDec>')
-		print('starring 2.2...')
-		inc self.indentation
+		self@@assert_edible('field', 'static')
+		self@@open_tag('classVarDec')
 		self@@eat('field', 'static')
 		self@@compile_type()
 		self@@compile_var_name()
-		local compile_more_vars := proc() is
-			self@@eat(',')
-			self@@compile_var_name()
-		end
-		self@@star(compile_more_vars)
+		self@@zero_or_more(self.compile_more_vars)
 		self@@eat(';')
-		dec self.indentation
-		self@@out('</classVarDec>')
+		self@@close_tag()
 	end
 
-	proc parser@@compile_type(_) is
+	#-- ',' <var_name>
+	proc parser@@compile_more_vars(_) is
+		self@@eat(',')
+		self@@compile_var_name()
+	end
+
+	#-- {'int'|'char'|'boolean'|<class_name>}
+	proc parser@@compile_type(allow_void) is
+		allow_void := allow_void or false
 		try
-			self@@eat('int', 'char', 'boolean')
+			#-- try the primitives first
+			if allow_void then
+				self@@eat('int', 'char', 'boolean', 'void')
+			else
+				self@@eat('int', 'char', 'boolean')
+			fi
 		catch
 			try
-				self@@eat_identifier()
+				#-- if primitives fail, try a class name
+				self@@compile_class_name()
 			catch
 				local token := bottom(self.tokens)
-				error('Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')
+				error('Unexpected token: Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')
 			yrt
 		yrt
 	end
 
+	#-- any identifier is a valid variable name
 	proc parser@@compile_var_name(_) is
 		self@@eat_identifier()
 	end
 
+	#-- {'constructor'|'method'|'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
 	proc parser@@compile_subroutine(_) is
+		self@@assert_edible('constructor', 'method', 'function')
+		self@@open_tag('subroutineDec')
+		self@@compile_type(true)
+		self@@compile_subroutine_name()
+		self@@eat('(')
+		self@@compile_param_list()
+		self@@eat(')')
+		self@@compile_subroutine_body()
+		self@@close_tag()
+	end
+
+	#-- any identifier is a valid subroutine name
+	proc parser@@compile_subroutine_name(_) is
+		self@@eat_identifier()
+	end
+
+	#-- [<type> <var_name> (',' <type> <var_name>)*]
+	proc parser@@compile_param_list(_) is
+		self@@open_tag('parameterList')
+		local helper := proc() is
+			self@@compile_type()
+			self@@compile_var_name()
+			local compile_more_params := proc() is
+				self@@compile_type()
+				self@@compile_var_name()
+			end
+			self@@zero_or_more(compile_more_params)
+		end
+		self@@zero_or_one(helper)
+		self@@close_tag()
+	end
+
+	#-- '{' <local_var>* <statements> '}'
+	proc parser@@compile_subroutine_body(_) is
+		self@@assert_edible('{')
+		self@@open_tag('subroutineBody')
+		self@@eat('{')
+		self@@zero_or_more(self.compile_local_var)
+		self@@compile_statements()
+		self@@eat('}')
+		self@@close_tag()
+	end
+
+	#-- 'var' <type> <var_name> <more_vars>* ';'
+	proc parser@@compile_local_var(_) is
+		self@@assert_edible('var')
+		self@@open_tag('varDec')
+		self@@eat('var')
+		self@@compile_type()
+		self@@compile_var_name()
+		self@@zero_or_more(self.compile_more_vars)
+		self@@eat(';')
+		self@@close_tag()
+	end
+
+	#--
+	proc parser@@compile_statements() is
 		#-- TODO
 	end
 
