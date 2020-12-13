@@ -8,3 +8,5 @@
 		<identifier> my_field </identifier>
 		<symbol> ; </symbol>
 	</classVarDec>
+	<symbol> } </symbol>
+</class>

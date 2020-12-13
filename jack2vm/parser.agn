@@ -84,7 +84,10 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- call func as many times as possible until it throws an error
 	proc parser@@zero_or_more(func) is
-		self@@zero_or_one(<< (func) -> do func(self) od >>)
+		local helper := proc() is
+			do func(self) od
+		end
+		self@@zero_or_one(helper)
 	end
 
 	#-- call func once, and catch an error if it is an Unexpected token error
@@ -107,9 +110,9 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- closes the xml tag on the top of the stack, and pops it
 	proc parser@@close_tag() is
+		dec self.indentation
 		self@@out('</' & top(self.tag_stack) & '>')
 		pop top from self.tag_stack
-		dec self.indentation
 	end
 
 	#-- 'class' <class_name> '{' <class_var>* <subroutine>* '}'
