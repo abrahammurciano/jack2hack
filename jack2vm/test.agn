@@ -1,4 +1,4 @@
 run 'parser'
 
-parser := new_parser('test.tokenised.xml', 'test.parsed.xml')
+parser := new_parser('/home/abraham/Downloads/nand2tetris/Projects/10/ArrayTest/MainT.xml', '/home/abraham/Downloads/nand2tetris/Projects/10/ArrayTest/Main.parsed.xml')
 parser@@parse()

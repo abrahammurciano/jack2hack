@@ -73,13 +73,13 @@ new_parser := proc(in_file, out_file, indent_str) is
 		fi
 	end
 
-	#-- if the current token is an identifier, pop it and return its name, otherwise fail
-	proc parser@@eat_identifier(_) is
+	#-- if the current token is of the provided type, pop it and return it, otherwise throw an error
+	proc parser@@eat_terminal(token_type) is
 		local token := bottom(self.tokens)
-		if token[1] = 'identifier' then
+		if token[1] = token_type then
 			return self@@eat(token[2])
 		fi
-		error('Unexpected token: Expected an identifier. Instead saw the ' & token[1] & ' "' & token[2] & '".')
+		error('Unexpected token: Expected a token of type "' & token_type & '". Instead saw the ' & token[1] & ' "' & token[2] & '".')
 	end
 
 
@@ -112,8 +112,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- closes the xml tag on the top of the stack, and pops it
 	proc parser@@close_tag() is
 		dec self.indentation
-		self@@out('</' & top(self.tag_stack) & '>')
-		pop top from self.tag_stack
+		self@@out('</' & pop(self.tag_stack) & '>')
 	end
 
 	#-- 'class' <class_name> '{' <class_var>* <subroutine>* '}'
@@ -131,10 +130,10 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- any identifier is a valid class name
 	proc parser@@compile_class_name(_) is
-		self@@eat_identifier()
+		self@@eat_terminal('identifier')
 	end
 
-	#-- {'static'|'field'} <type> <var_name> <more_vars>* ';'
+	#-- {'static' | 'field'} <type> <var_name> <more_vars>* ';'
 	proc parser@@compile_class_var(_) is
 		self@@assert_edible('field', 'static')
 		self@@open_tag('classVarDec')
@@ -152,7 +151,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_var_name()
 	end
 
-	#-- {'int'|'char'|'boolean'|<class_name>}
+	#-- {'int' | 'char' | 'boolean'|<class_name>}
 	proc parser@@compile_type(allow_void) is
 		allow_void := allow_void or false
 		try
@@ -175,10 +174,10 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- any identifier is a valid variable name
 	proc parser@@compile_var_name(_) is
-		self@@eat_identifier()
+		self@@eat_terminal('identifier')
 	end
 
-	#-- {'constructor'|'method'|'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
+	#-- {'constructor' | 'method' | 'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
 	proc parser@@compile_subroutine(_) is
 		self@@assert_edible('constructor', 'method', 'function')
 		self@@open_tag('subroutineDec')
@@ -193,7 +192,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- any identifier is a valid subroutine name
 	proc parser@@compile_subroutine_name(_) is
-		self@@eat_identifier()
+		self@@eat_terminal('identifier')
 	end
 
 	#-- [<type> <var_name> (',' <type> <var_name>)*]
@@ -333,7 +332,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@close_tag()
 	end
 
-	#-- <term> (<op> <term>)?
+	#-- <term> (<op> <term>)*
 	proc parser@@compile_expr(_) is
 		self@@assert_expr_beginning()
 		self@@open_tag('expression')
@@ -342,7 +341,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@compile_op()
 			self@@compile_term()
 		end
-		self@@zero_or_one(compile_more_terms)
+		self@@zero_or_more(compile_more_terms)
 		self@@close_tag()
 	end
 
@@ -353,14 +352,108 @@ new_parser := proc(in_file, out_file, indent_str) is
 		fi
 	end
 
-	#--
 	proc parser@@compile_term(_) is
-		#-- TODO
+		#-- first try the unambiguous paths
+		for func in {self.compile_int, self.compile_str, self.compile_keyword_const, self.compile_parentheses, self.compile_unary_term} do
+			try
+				func(self)
+				return
+			catch msg then
+				if not strings.isabbrev(msg, 'Unexpected token:', true) then
+					error(msg)
+				fi
+			yrt
+		od
+
+		#-- if the previous loop hasnt returned, the next token is an identifier, which is ambiguous so we must look ahead
+		local curr_token := bottom(self.tokens)
+		if curr_token[1] <> 'identifier' then
+			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & curr_token[2] & '".')
+		fi
+		pop bottom from self.tokens
+		local next_token := bottom(self.tokens)
+		if next_token[2] = '[' then
+			#-- restore curr_token (index 1 is guaranteed to be empty)
+			self.tokens[1] := curr_token
+			self@@compile_subscript()
+		elif next_token[2] in {'.', '('} then
+			#-- restore curr_token (index 1 is guaranteed to be empty)
+			self.tokens[1] := curr_token
+			self@@compile_call()
+		else
+			#-- restore curr_token (index 1 is guaranteed to be empty)
+			self.tokens[1] := curr_token
+			self@@compile_var_name()
+		fi
 	end
 
-	#--
+	#-- positive integer up to 32767
+	proc parser@@compile_int(_) is
+		self@@eat_terminal('integerConstant')
+	end
+
+	#-- double quoted sequence of unicode characters not including double quotes or newlines
+	proc parser@@compile_str(_) is
+		self@@eat_terminal('stringConstant')
+	end
+
+	#-- 'true' | 'false' | 'null' | 'this'
+	proc parser@@compile_keyword_const(_) is
+		self@@eat('true', 'false', 'null', 'this')
+	end
+
+	#-- '(' <expr> ')'
+	proc parser@@compile_parentheses(_) is
+		self@@eat('(')
+		self@@compile_expr()
+		self@@eat(')')
+	end
+
+	#-- ('-' | '~') <term>
+	proc parser@@compile_unary_term(_) is
+		self@@eat('~', '-')
+		self@@compile_term()
+	end
+
+	#-- <var_name> '[' <expr> ']'
+	proc parser@@compile_subscript(_) is
+		self@@eat_terminal('identifier')
+		self@@eat('[')
+		self@@compile_expr()
+		self@@eat(']')
+	end
+
+	#-- ((<class_name> | <var_name>) '.')? <subroutine_name> '(' <expr_list>? ')'
+	#-- equivalent to
+	#-- <identifier> ('.' <identifier>)? '(' <expr_list>? ')'
 	proc parser@@compile_call(_) is
-		#-- TODO
+		self@@eat_terminal('identifier')
+		try
+			self@@eat('.')
+			self@@eat_terminal('identifier')
+		catch msg then
+			if not strings.isabbrev(msg, 'Unexpected token:', true) then
+				error(msg)
+			fi
+		yrt
+		self@@eat('(')
+		self@@zero_or_one(self.compile_expr_list)
+		self@@eat(')')
+	end
+
+	#-- <expr> (',' <expr>)*
+	proc parser@@compile_expr_list(_) is
+		self@@compile_expr()
+		local helper := proc() is
+			self@@eat(',')
+			self@@compile_expr()
+		end
+		self@@zero_or_more(helper)
+	end
+
+	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
+	proc parser@@compile_op(_) is
+		self@@eat('+', '-', '*', '/', '&amp;', '|', '&lt;', '&gt;', '=')
 	end
 
 	return parser
