@@ -49,8 +49,9 @@ new_tokeniser := proc(in_file, out_file) is
 	]
 
 	proc tokeniser@@tokenise(_) is
-		#-- open tokeniser
-		io.write(self.fout, '<tokens>\n')
+		local token, curr_char
+		#-- open tokens tag
+		io.writeline(self.fout, '<tokens>')
 		local curr_char := io.read(self.fin)
 		while (next_char := io.read(self.fin)) do
 			#-- if char is comment
@@ -76,7 +77,7 @@ new_tokeniser := proc(in_file, out_file) is
 
 			#-- if char is a symbol
 			elif (curr_char in symbols) then
-				io.write(self.fout,'\t<symbol> ',curr_char,' </symbol>\n')
+				self@@out('symbol', curr_char)
 
 			#-- if char is a string
 			elif (curr_char = '"') then
@@ -93,57 +94,50 @@ new_tokeniser := proc(in_file, out_file) is
 					fi
 					str &:= next_char
 				od
-				io.write(self.fout,'\t<stringConstant> ',str,' </stringConstant>\n')
+				self@@out('stringConstant', str)
 
 			#-- if char is digit
 			elif (curr_char in digits) then
-				local num := ''
-				num &:= curr_char
-				#-- if immediate end of number, break
-				if (next_char in digits) then
-					str &:= next_char
-					while (next_char := io.read(self.fin)) do
-						if (next_char in digits) then
-							num &:= next_char
-						else
-							break
-						fi
-					od
-				fi
-				io.write(self.fout,'\t<intConstant> ',num,' </intConstant>\n')
+				token, curr_char := self@@read_int(curr_char)
+				self@@out('intConstant', token)
 
-			#-- if char is identifier
-			elif (curr_char.isalphanumeric) then
-				local alphanum := ''
-				alphanum &:= curr_char
-				if (next_char.isalphanumeric) then
-					alphanum &:= next_char
-					while (next_char := io.read(self.fin)) do
-						if next_char.isalphanumeric) then
-							alphanum &:= next_char
-						else
-							break
-						fi
-					do
-				fi
+			#-- if char is beginning of identifier or keyword (aka word)
+			elif (strings.isalpha(curr_char) or curr_char = '_') then
+				token, curr_char := self@@read_word(curr_char)
 				#--check to see if identifier is keyword
-				if (alphanum in keywords) then
-					io.write(self.fout,'\t<keyword> ',alphanum,' </keyword>\n')
+				if (token in keywords) then
+					self@@out('keyword', token)
 				else
-					io.write(self.fout,'\t<identifier> ',alphanum,' </identifier>\n')
+					self@@out('identifier', token)
+				fi
 			fi
-			curr_char := next_char
 		od
 		#-- close tokeniser
-		io.write(self.fin, '</tokens>')
+		io.write(self.fout, '</tokens>')
 		io.close(self.fout)
 		io.close(self.fin)
 	end
 
-	proc tokeniser@@read_token(_) is
-		local current_input := io.read(in_file, 1)
-		local next_input := io.read(in_file, 1)
+	proc tokeniser@@read_int(curr_char) is
+		local num := ''
+		while (strings.isnumber(curr_char)) do
+			num &:= curr_char
+			curr_char := io.read(self.fin)
+		od
+		return num, curr_char
+	end
 
+	proc tokeniser@@read_word(curr_char) is
+		local word := ''
+		while (strings.isalphanumeric(curr_char)) do
+			word &:= curr_char
+			curr_char := io.read(self.fin)
+		od
+		return word, curr_char
+	end
+
+	proc tokeniser@@out(tag, value) is
+		io.writeline(self.fout, '\t<' & tag & '> ' & value & ' </' & tag & '>')
 	end
 
 	return tokeniser
