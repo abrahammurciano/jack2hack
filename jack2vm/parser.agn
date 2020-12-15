@@ -335,7 +335,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- <term> (<op> <term>)*
 	proc parser@@compile_expr(_) is
-		self@@assert_expr_beginning()
+		self@@assert_term_beginning()
 		self@@open_tag('expression')
 		self@@compile_term()
 		local compile_more_terms := proc() is
@@ -346,14 +346,17 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@close_tag()
 	end
 
-	proc parser@@assert_expr_beginning(_) is
+	proc parser@@assert_term_beginning(_) is
 		local token := bottom(self.tokens)
 		if not (token[1] in {'integerConstant', 'stringConstant', 'identifier'} or token[2] in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
-			error('Unexpected token: Expected a constant or identifier but instead saw ' & token[2])
+			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & token[2] & '".')
 		fi
 	end
 
 	proc parser@@compile_term(_) is
+		self@@assert_term_beginning()
+		self@@open_tag('term')
+
 		#-- first try the unambiguous paths
 		for func in {self.compile_int, self.compile_str, self.compile_keyword_const, self.compile_parentheses, self.compile_unary_term} do
 			try
@@ -386,6 +389,8 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self.tokens[1] := curr_token
 			self@@compile_var_name()
 		fi
+
+		self@@close_tag()
 	end
 
 	#-- positive integer up to 32767
@@ -426,7 +431,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- ((<class_name> | <var_name>) '.')? <subroutine_name> '(' <expr_list>? ')'
 	#-- equivalent to
-	#-- <identifier> ('.' <identifier>)? '(' <expr_list>? ')'
+	#-- <identifier> ('.' <identifier>)? '(' <expr_list> ')'
 	proc parser@@compile_call(_) is
 		self@@eat_terminal('identifier')
 		try
@@ -442,15 +447,19 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat(')')
 	end
 
-	#-- <expr> (',' <expr>)*
+	#-- (<expr> (',' <expr>)*)?
 	proc parser@@compile_expr_list(_) is
-		#-- TODO start <expressionList> maybe
-		self@@compile_expr()
-		local helper := proc() is
-			self@@eat(',')
+		self@@open_tag('expressionList')
+		local helper1 := proc() is
 			self@@compile_expr()
+			local helper2 := proc() is
+				self@@eat(',')
+				self@@compile_expr()
+			end
+			self@@zero_or_more(helper2)
 		end
-		self@@zero_or_more(helper)
+		self@@zero_or_one(helper1)
+		self@@close_tag()
 	end
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
