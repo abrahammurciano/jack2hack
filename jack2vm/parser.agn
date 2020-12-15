@@ -110,7 +110,10 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- closes the xml tag on the top of the stack, and pops it
-	proc parser@@close_tag(_) is
+	proc parser@@close_tag(tag_name) is
+		if tag_name <> null and tag_name <> top(self.tag_stack) then
+			error('Expected to close <' & tag_name & '> but <' & top(self.tag_stack) & '> was left open')
+		fi
 		dec self.indentation
 		self@@out('</' & pop(self.tag_stack) & '>')
 	end
@@ -125,7 +128,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@zero_or_more(self.compile_class_var)
 		self@@zero_or_more(self.compile_subroutine)
 		self@@eat('}')
-		self@@close_tag()
+		self@@close_tag('class')
 	end
 
 	#-- any identifier is a valid class name
@@ -142,7 +145,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_var_name()
 		self@@zero_or_more(self.compile_more_vars)
 		self@@eat(';')
-		self@@close_tag()
+		self@@close_tag('classVarDec')
 	end
 
 	#-- ',' <var_name>
@@ -188,7 +191,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_param_list()
 		self@@eat(')')
 		self@@compile_subroutine_body()
-		self@@close_tag()
+		self@@close_tag('subroutineDec')
 	end
 
 	#-- any identifier is a valid subroutine name
@@ -209,7 +212,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@zero_or_more(compile_more_params)
 		end
 		self@@zero_or_one(helper)
-		self@@close_tag()
+		self@@close_tag('parameterList')
 	end
 
 	#-- '{' <local_var>* <statements> '}'
@@ -220,7 +223,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@zero_or_more(self.compile_local_var)
 		self@@compile_statements()
 		self@@eat('}')
-		self@@close_tag()
+		self@@close_tag('subroutineBody')
 	end
 
 	#-- 'var' <type> <var_name> <more_vars>* ';'
@@ -232,14 +235,14 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_var_name()
 		self@@zero_or_more(self.compile_more_vars)
 		self@@eat(';')
-		self@@close_tag()
+		self@@close_tag('varDec')
 	end
 
 	#-- <statement>*
 	proc parser@@compile_statements(_) is
 		self@@open_tag('statements')
 		self@@zero_or_more(self.compile_statement)
-		self@@close_tag()
+		self@@close_tag('statements')
 	end
 
 	#-- {<let>|<if>|<while>|<do>|<return>}
@@ -266,7 +269,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('=')
 		self@@compile_expr()
 		self@@eat(';')
-		self@@close_tag()
+		self@@close_tag('letStatement')
 	end
 
 	#-- '[' <expr> ']'
@@ -288,7 +291,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_statements()
 		self@@eat('}')
 		self@@zero_or_one(self.compile_else)
-		self@@close_tag()
+		self@@close_tag('ifStatement')
 	end
 
 	#-- 'else' '{' <statements> '}'
@@ -310,7 +313,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('{')
 		self@@compile_statements()
 		self@@eat('}')
-		self@@close_tag()
+		self@@close_tag('whileStatement')
 	end
 
 	#-- 'do' <call> ';'
@@ -320,7 +323,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('do')
 		self@@compile_call()
 		self@@eat(';')
-		self@@close_tag()
+		self@@close_tag('doStatement')
 	end
 
 	#-- 'return' <expr>? ';'
@@ -330,7 +333,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('return')
 		self@@zero_or_one(self.compile_expr)
 		self@@eat(';')
-		self@@close_tag()
+		self@@close_tag('returnStatement')
 	end
 
 	#-- <term> (<op> <term>)*
@@ -343,7 +346,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@compile_term()
 		end
 		self@@zero_or_more(compile_more_terms)
-		self@@close_tag()
+		self@@close_tag('expression')
 	end
 
 	proc parser@@assert_term_beginning(_) is
@@ -361,6 +364,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		for func in {self.compile_int, self.compile_str, self.compile_keyword_const, self.compile_parentheses, self.compile_unary_term} do
 			try
 				func(self)
+				self@@close_tag('term')
 				return
 			catch msg then
 				if not strings.isabbrev(msg, 'Unexpected token:', true) then
@@ -390,7 +394,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@compile_var_name()
 		fi
 
-		self@@close_tag()
+		self@@close_tag('term')
 	end
 
 	#-- positive integer up to 32767
@@ -459,7 +463,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@zero_or_more(helper2)
 		end
 		self@@zero_or_one(helper1)
-		self@@close_tag()
+		self@@close_tag('expressionList')
 	end
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
