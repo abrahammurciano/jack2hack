@@ -1,0 +1,18 @@
+xml_encode := proc(s) is
+	local tbl := [
+		' ' ~ '&nbsp;',
+		'\t' ~ '&#9;',
+		'\n' ~ '&#10;',
+		'\r' ~ '&#13;',
+		'<' ~ '&lt;',
+		'>' ~ '&gt;',
+		'"' ~ '&quot;',
+		'&' ~ '&amp;'
+	]
+
+	local encoded := ''
+	for c in s do
+		encoded &:= tbl[c] or c1
+	od
+	return encoded
+end
