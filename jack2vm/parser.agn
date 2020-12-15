@@ -110,7 +110,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- closes the xml tag on the top of the stack, and pops it
-	proc parser@@close_tag() is
+	proc parser@@close_tag(_) is
 		dec self.indentation
 		self@@out('</' & pop(self.tag_stack) & '>')
 	end
@@ -151,7 +151,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_var_name()
 	end
 
-	#-- {'int' | 'char' | 'boolean'|<class_name>}
+	#-- {'int' | 'char' | 'boolean' | <class_name> | 'void'}
 	proc parser@@compile_type(allow_void) is
 		allow_void := allow_void or false
 		try
@@ -181,6 +181,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	proc parser@@compile_subroutine(_) is
 		self@@assert_edible('constructor', 'method', 'function')
 		self@@open_tag('subroutineDec')
+		self@@eat('constructor', 'method', 'function')
 		self@@compile_type(true)
 		self@@compile_subroutine_name()
 		self@@eat('(')
@@ -323,7 +324,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- 'return' <expr>? ';'
-	proc parser@@compile_do(_) is
+	proc parser@@compile_return(_) is
 		self@@assert_edible('return')
 		self@@open_tag('returnStatement')
 		self@@eat('return')
@@ -346,7 +347,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	proc parser@@assert_expr_beginning(_) is
-		local token := bottom(this.tokens)
+		local token := bottom(self.tokens)
 		if not (token[1] in {'integerConstant', 'stringConstant', 'identifier'} or token[2] in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
 			error('Unexpected token: Expected a constant or identifier but instead saw ' & token[2])
 		fi
