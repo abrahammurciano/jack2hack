@@ -1,5 +1,7 @@
 import xml
 
+run(jack2vm_dir & '/../lib/xml_encode')
+
 new_parser := proc(in_file, out_file, indent_str) is
 	parser := [
 		'fout' ~ io.open(out_file, 'w'),
@@ -31,7 +33,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
 	proc parser@@print_token(t) is
-		self@@out('<' & t[1] & '> ' & t[2] & ' </' & t[1] & '>')
+		self@@out('<' & t[1] & '> ' & xml_encode(t[2]) & ' </' & t[1] & '>')
 	end
 
 	proc parser@@parse(_) is
@@ -257,6 +259,8 @@ new_parser := proc(in_file, out_file, indent_str) is
 				fi
 			yrt
 		od
+		local token := bottom(self.tokens)
+		error('Unexpected token: Expected the start of a statement, instead saw "' & token[2] & '".')
 	end
 
 	#-- 'let' <var_name> <index>? '=' <expr> ';'
@@ -468,7 +472,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
 	proc parser@@compile_op(_) is
-		self@@eat('+', '-', '*', '/', '&amp;', '|', '&lt;', '&gt;', '=')
+		self@@eat('+', '-', '*', '/', ' ', '|', '<', '>', '=')
 	end
 
 	return parser

@@ -12,7 +12,7 @@ xml_encode := proc(s) is
 
 	local encoded := ''
 	for c in s do
-		encoded &:= tbl[c] or c1
+		encoded &:= tbl[c] or c
 	od
 	return encoded
 end

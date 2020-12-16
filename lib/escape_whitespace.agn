@@ -1,0 +1,15 @@
+escape_whitespace := proc(s) is
+	local tbl := [
+		' ' ~ '\\s',
+		'\t' ~ '\\t',
+		'\n' ~ '\\n',
+		'\r' ~ '\\r',
+		'\\' ~ '\\\\'
+	]
+
+	local escaped := ''
+	for c in s do
+		escaped &:= tbl[c] or c
+	od
+	return escaped
+end

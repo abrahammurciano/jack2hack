@@ -1,5 +1,0 @@
-run 'parser'
-
-base := '/home/abraham/Downloads/nand2tetris/projects/10/ArrayTest/'
-parser := new_parser(base & 'MainT.xml', base & 'Main.parsed.xml')
-parser@@parse()
