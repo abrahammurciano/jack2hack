@@ -208,6 +208,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			self@@compile_type()
 			self@@compile_var_name()
 			local compile_more_params := proc() is
+				self@@eat(',')
 				self@@compile_type()
 				self@@compile_var_name()
 			end
@@ -299,7 +300,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- 'else' '{' <statements> '}'
-	proc parser@@copmile_else(_) is
+	proc parser@@compile_else(_) is
 		self@@eat('else')
 		self@@eat('{')
 		self@@compile_statements()
@@ -472,7 +473,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
 	proc parser@@compile_op(_) is
-		self@@eat('+', '-', '*', '/', ' ', '|', '<', '>', '=')
+		local temp := self@@eat('+', '-', '*', '/', ' ', '&', '|', '<', '>', '=')
 	end
 
 	return parser

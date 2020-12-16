@@ -5,6 +5,7 @@ jack2vm_dir := if os.isdir(jack2vm_dir) then jack2vm_dir else '.' fi
 run(jack2vm_dir & '/../lib/file_base_name')
 run(jack2vm_dir & '/parse_args')
 run(jack2vm_dir & '/tokeniser')
+run(jack2vm_dir & '/parser')
 
 main := proc() is
 	#-- get names of input and output files from command line args
@@ -14,12 +15,13 @@ main := proc() is
 	local parsed_files := []
 
 	for i, file_name in file_names do
+		print(file_name)
 		#-- tokenise the file
 		tokenised_files[i] := out_dir & '/' & file_base_name(file_name) & '.tokenised.xml'
 		new_tokeniser(file_name, tokenised_files[i])@@tokenise()
 
 		#-- parse the file
-		tokenised_files[i] := out_dir & '/' & file_base_name(file_name) & '.parsed.xml'
+		parsed_files[i] := out_dir & '/' & file_base_name(file_name) & '.parsed.xml'
 		new_parser(tokenised_files[i], parsed_files[i])@@parse()
 	od
 end

@@ -1,4 +1,5 @@
 run(jack2vm_dir & '/../lib/xml_encode')
+run(jack2vm_dir & '/../lib/escape_whitespace')
 
 new_tokeniser := proc(in_file, out_file) is
 	local tokeniser := [
@@ -11,53 +12,54 @@ new_tokeniser := proc(in_file, out_file) is
 	]
 
 	proc tokeniser@@tokenise(_) is
-		local token
+		local token := ''
 		#-- open tokens tag
 		io.writeline(self.fout, '<tokens>')
-		self.curr_char := io.read(self.fin)
-		self.next_char := io.read(self.fin)
-		do
-			#-- if char is comment
-			if (self.curr_char = '/') then
+		self.curr_char := io.read(self.fin, 1)
+		self.next_char := io.read(self.fin, 1)
+		while self.curr_char <> null do
+
+			#-- if char is a one line comment
+			if self.curr_char = '/' and self.next_char = '/' then
 				#-- till end of line
-				if (self.next_char = '/') then
-					token := self@@read_while(<< (c) -> c <> '\n' >>)
-					self@@discard(1) #-- '\n'
-				elif (self.next_char = '*') then
-					token := self@@read_while(<< (c1, c2) -> c1 <> '*' or c2 <> '/' >>)
-					self@@discard(2) #-- '*/'
-				fi
+				token := self@@read_while(<< (c) -> c <> '\n' >>)
+				self@@discard(1) #-- '\n'
+			elif self.curr_char = '/' and self.next_char = '*' then
+				token := self@@read_while(<< (c1, c2) -> c1 <> '*' or c2 <> '/' >>)
+				self@@discard(2) #-- '*/'
 
 			#-- if char is a symbol
-			elif (self.curr_char in self.symbols) then
-				token := self@@read_while(<< () -> false >>)
-				self@@out('symbol', token)
+			elif self.curr_char in self.symbols then
+				token := self@@read_while(<< (c) -> c in self.symbols >>)
+				for sym in token do
+					self@@out('symbol', sym)
+				od
 
 			#-- if char is the start of a string
-			elif (self.curr_char = '"') then
+			elif self.curr_char = '"' then
 				self@@discard(1) #-- '"'
-				token := self@@read_while(<< (c) -> c <> '"' >>)
+				token := escape_whitespace(self@@read_while(<< (c) -> c <> '"' >>))
 				self@@discard(1) #-- '"'
 				#-- discard the first character of token which is an open quote
 				self@@out('stringConstant', token)
 
 			#-- if char is digit
-			elif (strings.isnumber(self.curr_char)) then
+			elif strings.isnumber(self.curr_char) then
 				token := self@@read_while(<< (c) -> strings.isnumber(c) >>)
-				self@@out('intConstant', token)
+				self@@out('integerConstant', token)
 
 			#-- if char is beginning of identifier or keyword (aka word)
-			elif (strings.isalpha(self.curr_char) or self.curr_char = '_') then
+			elif strings.isalpha(self.curr_char) or self.curr_char = '_' then
 				token := self@@read_while(<< (c) -> strings.isalphanumeric(c) or c = '_' >>)
 				#--check to see if identifier is keyword
-				if (token in keywords) then
+				if token in self.keywords then
 					self@@out('keyword', token)
 				else
 					self@@out('identifier', token)
 				fi
 
-			#-- if its a space, skip
-			elif (self.curr_char in {' ', '\t', '\n', '\r'})
+			#-- if its whitespace, skip
+			elif self.curr_char in {' ', '\t', '\n', '\r'} then
 				self@@discard(1)
 
 			else
@@ -77,7 +79,7 @@ new_tokeniser := proc(in_file, out_file) is
 			token &:= self.curr_char
 			self@@discard(1)
 		od
-		return xml_encode(token)
+		return token
 	end
 
 	#-- will discard the next n characters (default is 1)
@@ -85,12 +87,12 @@ new_tokeniser := proc(in_file, out_file) is
 		n := n or 1
 		for i from 1 to n do
 			self.curr_char := self.next_char
-			self.next_char := io.read(self.fin)
+			self.next_char := io.read(self.fin, 1)
 		od
 	end
 
 	proc tokeniser@@out(tag, value) is
-		io.writeline(self.fout, '\t<' & tag & '> ' & value & ' </' & tag & '>')
+		io.writeline(self.fout, '\t<' & tag & '> ' & xml_encode(value) & ' </' & tag & '>')
 	end
 
 	return tokeniser
