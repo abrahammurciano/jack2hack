@@ -8,7 +8,15 @@ new_parser := proc(in_file, out_file, indent_str) is
 		'tokens' ~ [],	#-- array of type:value pairs
 		'indent_str' ~ indent_str or '\t',
 		'indentation' ~ 0,
-		'tag_stack' ~ []
+		'tag_stack' ~ [],
+		'kind_to_segment' ~ [
+			'static' ~ 'static',
+			'field' ~ 'this',
+			'argument' ~ 'argument',
+			'var' ~ 'local'
+		],
+		'class_symbol_table' ~ new_symbol_table(),
+		'procedure_symbol_table' ~ new_symbol_table()
 	]
 
 	#-- returns an array of type:value pairs from the tokenised XML file
@@ -87,16 +95,22 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- call func as many times as possible until it throws an error
 	proc parser@@zero_or_more(func) is
-		local helper := proc() is
-			do func(self) od
-		end
-		self@@zero_or_one(helper)
+		local return_values := []
+		try
+			do insert func(self) into return_values od
+		catch msg then
+			if not strings.isabbrev(msg, 'Unexpected token:', true) then
+				error(msg)
+			else
+				return return_values
+			fi
+		yrt
 	end
 
 	#-- call func once, and catch an error if it is an Unexpected token error
 	proc parser@@zero_or_one(func) is
 		try
-			func(self)
+			return func(self)
 		catch msg then
 			if not strings.isabbrev(msg, 'Unexpected token:', true) then
 				error(msg)
@@ -135,17 +149,23 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- any identifier is a valid class name
 	proc parser@@compile_class_name(_) is
-		self@@eat_terminal('identifier')
+		return self@@eat_terminal('identifier')
 	end
 
 	#-- {'static' | 'field'} <type> <var_name> <more_vars>* ';'
 	proc parser@@compile_class_var(_) is
 		self@@assert_edible('field', 'static')
 		self@@open_tag('classVarDec')
-		self@@eat('field', 'static')
-		self@@compile_type()
-		self@@compile_var_name()
-		self@@zero_or_more(self.compile_more_vars)
+		local segment := self.kind_to_segment[self@@eat('field', 'static')]
+		local var_type := self@@compile_type()
+		#-- TODO: debug this
+		local names := [self@@compile_var_name()]
+		names := names union self@@zero_or_more(self.compile_more_vars)
+		#-- add to class symbols table
+		for name in names do
+			self.class_symbol_table@@add_symbol(name, var_type, segment)
+		od
+
 		self@@eat(';')
 		self@@close_tag('classVarDec')
 	end
@@ -162,14 +182,14 @@ new_parser := proc(in_file, out_file, indent_str) is
 		try
 			#-- try the primitives first
 			if allow_void then
-				self@@eat('int', 'char', 'boolean', 'void')
+				return self@@eat('int', 'char', 'boolean', 'void')
 			else
-				self@@eat('int', 'char', 'boolean')
+				return self@@eat('int', 'char', 'boolean')
 			fi
 		catch
 			try
 				#-- if primitives fail, try a class name
-				self@@compile_class_name()
+				return self@@compile_class_name()
 			catch
 				local token := bottom(self.tokens)
 				error('Unexpected token: Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')

@@ -1,0 +1,12 @@
+new_symbol := proc(name, var_type, segment, offset) is
+
+	local symbol := [
+		'name' ~ name,
+		'var_type' ~ var_type,
+		'segment' ~ segment,
+		'offset' ~ offset
+	]
+
+	return symbol
+
+end

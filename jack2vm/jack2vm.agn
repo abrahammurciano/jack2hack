@@ -6,6 +6,8 @@ run(jack2vm_dir & '/../lib/file_base_name')
 run(jack2vm_dir & '/parse_args')
 run(jack2vm_dir & '/tokeniser')
 run(jack2vm_dir & '/parser')
+run(jack2vm_dir & '/symbol')
+run(jack2vm_dir & '/symbol_table')
 
 main := proc() is
 	#-- get names of input and output files from command line args
@@ -22,7 +24,9 @@ main := proc() is
 
 		#-- parse the file
 		parsed_files[i] := out_dir & '/' & file_base_name(file_name) & '.parsed.xml'
-		new_parser(tokenised_files[i], parsed_files[i])@@parse()
+		local parser := new_parser(tokenised_files[i], parsed_files[i])
+		parser@@parse()
+		print(parser.class_symbol_table)
 	od
 end
 
