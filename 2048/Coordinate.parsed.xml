@@ -1,8 +1,0 @@
-<class>
-	<keyword> class </keyword>
-	<identifier> Coordinate </identifier>
-	<symbol> { </symbol>
-	<classVarDec>
-		<keyword> field </keyword>
-		<keyword> int </keyword>
-		<identifier> x </identifier>
