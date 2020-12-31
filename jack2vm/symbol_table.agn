@@ -6,11 +6,16 @@ new_symbol_table := proc() is
 	]
 
 	proc symbol_table@@add_symbol(name, var_type, segment) is
+		print('add_symbol', 1)
+		print('segment', segment)
 		if counters[segment] = null then
 			counters[segment] := 0
 		fi
+		print('add_symbol', 2)
 		insert new_symbol(name, var_type, segment, counters[segment]) into self.symbols
 		counters[segment] +:= 1
 	end
+
+	return symbol_table
 
 end

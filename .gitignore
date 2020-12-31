@@ -2,3 +2,5 @@ playground.agn
 *.pdf
 *.vm
 *.asm
+*.parsed.xml
+*.tokenised.xml

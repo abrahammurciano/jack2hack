@@ -96,15 +96,17 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- call func as many times as possible until it throws an error
 	proc parser@@zero_or_more(func) is
 		local return_values := []
-		try
-			do insert func(self) into return_values od
-		catch msg then
-			if not strings.isabbrev(msg, 'Unexpected token:', true) then
-				error(msg)
-			else
-				return return_values
-			fi
-		yrt
+		do
+			try
+				insert func(self) into return_values
+			catch msg then
+				if not strings.isabbrev(msg, 'Unexpected token:', true) then
+					error(msg)
+				else
+					return return_values
+				fi
+			yrt
+		od
 	end
 
 	#-- call func once, and catch an error if it is an Unexpected token error
@@ -141,8 +143,11 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('class')
 		self@@compile_class_name()
 		self@@eat('{')
+		print('compile_class', 1)
 		self@@zero_or_more(self.compile_class_var)
+		print('compile_class', 2)
 		self@@zero_or_more(self.compile_subroutine)
+		print('compile_class', 3)
 		self@@eat('}')
 		self@@close_tag('class')
 	end
@@ -163,7 +168,10 @@ new_parser := proc(in_file, out_file, indent_str) is
 		names := names union self@@zero_or_more(self.compile_more_vars)
 		#-- add to class symbols table
 		for name in names do
+			print('compile_class_var', 1)
+			print('class_symbol_table', self.class_symbol_table)
 			self.class_symbol_table@@add_symbol(name, var_type, segment)
+			print('compile_class_var', 2)
 		od
 
 		self@@eat(';')
@@ -173,7 +181,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- ',' <var_name>
 	proc parser@@compile_more_vars(_) is
 		self@@eat(',')
-		self@@compile_var_name()
+		return self@@compile_var_name()
 	end
 
 	#-- {'int' | 'char' | 'boolean' | <class_name> | 'void'}
@@ -199,7 +207,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- any identifier is a valid variable name
 	proc parser@@compile_var_name(_) is
-		self@@eat_terminal('identifier')
+		return self@@eat_terminal('identifier')
 	end
 
 	#-- {'constructor' | 'method' | 'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
