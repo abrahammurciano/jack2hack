@@ -9,8 +9,6 @@ new_symbol_table := proc() is
 		if self.counters[segment] = null then
 			self.counters[segment] := 0
 		fi
-		print('counters', self.counters)
-		print('add_symbol', 2)
 		insert new_symbol(name, var_type, segment, self.counters[segment]) into self.symbols
 		self.counters[segment] +:= 1
 	end

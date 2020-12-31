@@ -112,7 +112,8 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- call func once, and catch an error if it is an Unexpected token error
 	proc parser@@zero_or_one(func) is
 		try
-			return func(self)
+			local temp := func(self)
+			return temp
 		catch msg then
 			if not strings.isabbrev(msg, 'Unexpected token:', true) then
 				error(msg)
@@ -143,11 +144,8 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat('class')
 		self@@compile_class_name()
 		self@@eat('{')
-		print('compile_class', 1)
 		self@@zero_or_more(self.compile_class_var)
-		print('compile_class', 2)
 		self@@zero_or_more(self.compile_subroutine)
-		print('compile_class', 3)
 		self@@eat('}')
 		self@@close_tag('class')
 	end
@@ -163,15 +161,11 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@open_tag('classVarDec')
 		local segment := self.kind_to_segment[self@@eat('field', 'static')]
 		local var_type := self@@compile_type()
-		#-- TODO: debug this
 		local names := [self@@compile_var_name()]
 		names := names union self@@zero_or_more(self.compile_more_vars)
 		#-- add to class symbols table
 		for name in names do
-			print('compile_class_var', 1)
-			print('class_symbol_table', self.class_symbol_table)
 			self.class_symbol_table@@add_symbol(name, var_type, segment)
-			print('compile_class_var', 2)
 		od
 
 		self@@eat(';')
@@ -187,19 +181,23 @@ new_parser := proc(in_file, out_file, indent_str) is
 	#-- {'int' | 'char' | 'boolean' | <class_name> | 'void'}
 	proc parser@@compile_type(allow_void) is
 		allow_void := allow_void or false
+		local token := null
 		try
 			#-- try the primitives first
 			if allow_void then
-				return self@@eat('int', 'char', 'boolean', 'void')
+				token := self@@eat('int', 'char', 'boolean', 'void')
+				return token
 			else
-				return self@@eat('int', 'char', 'boolean')
+				token := self@@eat('int', 'char', 'boolean')
+				return token
 			fi
-		catch
+		catch msg then
 			try
 				#-- if primitives fail, try a class name
-				return self@@compile_class_name()
+				token := self@@compile_class_name()
+				return token
 			catch
-				local token := bottom(self.tokens)
+				token := bottom(self.tokens)
 				error('Unexpected token: Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')
 			yrt
 		yrt
