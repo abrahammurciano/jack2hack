@@ -1,8 +1,8 @@
-new_symbol := proc(name, var_type, segment, offset) is
+new_symbol := proc(var_type, name, segment, offset) is
 
 	local symbol := [
-		'name' ~ name,
 		'var_type' ~ var_type,
+		'name' ~ name,
 		'segment' ~ segment,
 		'offset' ~ offset
 	]

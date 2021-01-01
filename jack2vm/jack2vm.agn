@@ -24,9 +24,7 @@ main := proc() is
 
 		#-- parse the file
 		parsed_files[i] := out_dir & '/' & file_base_name(file_name) & '.parsed.xml'
-		local parser := new_parser(tokenised_files[i], parsed_files[i])
-		parser@@parse()
-		print(parser.class_symbol_table)
+		new_parser(tokenised_files[i], parsed_files[i])@@parse()
 	od
 end
 

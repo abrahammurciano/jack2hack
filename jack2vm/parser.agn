@@ -16,7 +16,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			'var' ~ 'local'
 		],
 		'class_symbol_table' ~ new_symbol_table(),
-		'procedure_symbol_table' ~ new_symbol_table()
+		'subroutine_symbol_table' ~ null
 	]
 
 	#-- returns an array of type:value pairs from the tokenised XML file
@@ -155,17 +155,17 @@ new_parser := proc(in_file, out_file, indent_str) is
 		return self@@eat_terminal('identifier')
 	end
 
-	#-- {'static' | 'field'} <type> <var_name> <more_vars>* ';'
+	#-- {'static' | 'field'} <type> <var_name> <another_var>* ';'
 	proc parser@@compile_class_var(_) is
 		self@@assert_edible('field', 'static')
 		self@@open_tag('classVarDec')
 		local segment := self.kind_to_segment[self@@eat('field', 'static')]
 		local var_type := self@@compile_type()
 		local names := [self@@compile_var_name()]
-		names := names union self@@zero_or_more(self.compile_more_vars)
+		names := names union self@@zero_or_more(self.compile_another_var)
 		#-- add to class symbols table
 		for name in names do
-			self.class_symbol_table@@add_symbol(name, var_type, segment)
+			self.class_symbol_table@@add_symbol(var_type, name, segment)
 		od
 
 		self@@eat(';')
@@ -173,7 +173,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- ',' <var_name>
-	proc parser@@compile_more_vars(_) is
+	proc parser@@compile_another_var(_) is
 		self@@eat(',')
 		return self@@compile_var_name()
 	end
@@ -213,6 +213,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@assert_edible('constructor', 'method', 'function')
 		self@@open_tag('subroutineDec')
 		self@@eat('constructor', 'method', 'function')
+		self.subroutine_symbol_table := new_symbol_table()
 		self@@compile_type(true)
 		self@@compile_subroutine_name()
 		self@@eat('(')
@@ -220,6 +221,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat(')')
 		self@@compile_subroutine_body()
 		self@@close_tag('subroutineDec')
+		print(self.subroutine_symbol_table)
 	end
 
 	#-- any identifier is a valid subroutine name
@@ -227,21 +229,26 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@eat_terminal('identifier')
 	end
 
-	#-- [<type> <var_name> (',' <type> <var_name>)*]
+	#-- [<param> (',' <param>)*]
 	proc parser@@compile_param_list(_) is
 		self@@open_tag('parameterList')
 		local helper := proc() is
-			self@@compile_type()
-			self@@compile_var_name()
+			self@@compile_param()
 			local compile_more_params := proc() is
 				self@@eat(',')
-				self@@compile_type()
-				self@@compile_var_name()
+				self@@compile_param()
 			end
 			self@@zero_or_more(compile_more_params)
 		end
 		self@@zero_or_one(helper)
 		self@@close_tag('parameterList')
+	end
+
+	#-- <type> <var_name>
+	proc parser@@compile_param(_) is
+		local var_type := self@@compile_type()
+		local name := self@@compile_var_name()
+		self.subroutine_symbol_table@@add_symbol(var_type, name, 'argument')
 	end
 
 	#-- '{' <local_var>* <statements> '}'
@@ -255,14 +262,19 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@close_tag('subroutineBody')
 	end
 
-	#-- 'var' <type> <var_name> <more_vars>* ';'
+	#-- 'var' <type> <var_name> <another_var>* ';'
 	proc parser@@compile_local_var(_) is
 		self@@assert_edible('var')
 		self@@open_tag('varDec')
 		self@@eat('var')
-		self@@compile_type()
-		self@@compile_var_name()
-		self@@zero_or_more(self.compile_more_vars)
+		local var_type := self@@compile_type()
+		local names := [self@@compile_var_name()]
+		names := names union self@@zero_or_more(self.compile_another_var)
+		#-- add to class symbols table
+		for name in names do
+			self.subroutine_symbol_table@@add_symbol(var_type, name, 'local')
+		od
+
 		self@@eat(';')
 		self@@close_tag('varDec')
 	end

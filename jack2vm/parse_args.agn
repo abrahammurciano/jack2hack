@@ -6,14 +6,15 @@ if not parse_args then
 	#-- returns a list of input file names and an output directory
 	parse_args := proc() is
 		local path_in := os.realpath(args[1] or '.')
-		local path_out := os.realpath(args[2] or path_in)
 
 		if path_in = fail then
-			error('File or directory "' & path_in & '" not found.')
+			error('File or directory "' & args[1] & '" not found.')
 		fi
 
+		local path_out := os.realpath(args[2] or path_in)
+
 		if path_out = fail then
-			error('File or directory "' & path_in & '" not found.')
+			error('File or directory "' & args[2] or path_in & '" not found.')
 		fi
 
 		if not os.isdir(path_in) then
