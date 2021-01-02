@@ -2,10 +2,11 @@ import xml
 
 run(jack2vm_dir & '/../lib/xml_encode')
 
-new_parser := proc(in_file, out_file, indent_str) is
+new_parser := proc(tokens, in_file, out_file, indent_str) is
 	parser := [
-		'fout' ~ io.open(out_file, 'w'),
-		'tokens' ~ [],	#-- array of type:value pairs
+		'fout_xml' ~ io.open(out_file, 'w'),
+		'fout_vm' ~ io.open(out_file, 'w'),
+		'tokens' ~ tokens,
 		'indent_str' ~ indent_str or '\t',
 		'indentation' ~ 0,
 		'tag_stack' ~ [],
@@ -31,18 +32,18 @@ new_parser := proc(in_file, out_file, indent_str) is
 		skip when not istable(tag)
 		local t_type := tag.label
 		local t_value := trim(tag[1])
-		parser.tokens[size(parser.tokens) + 1] := t_type:t_value
+		parser.tokens[size(parser.tokens) + 1] := new_token(t_type, t_value)
 	od
 
 	#-- write some string in the out file
 	#-- indents it according to the indentation class fields
-	proc parser@@out(s) is
-		io.writeline(self.fout, strings.repeat(self.indent_str, self.indentation) & s)
+	proc parser@@xml_out(s) is
+		io.writeline(self.fout_xml, strings.repeat(self.indent_str, self.indentation) & s)
 	end
 
 	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
 	proc parser@@print_token(t) is
-		self@@out('<' & t[1] & '> ' & xml_encode(t[2]) & ' </' & t[1] & '>')
+		self@@xml_out('<' & t[1] & '> ' & xml_encode(t[2]) & ' </' & t[1] & '>')
 	end
 
 	proc parser@@parse(_) is
@@ -55,24 +56,24 @@ new_parser := proc(in_file, out_file, indent_str) is
 		insert _ into varargs
 		local token := bottom(self.tokens)
 		for s in varargs do
-			if isstring(s) and token[2] == s then
+			if isstring(s) and token.value == s then
 				self@@print_token(token)
 				pop bottom from self.tokens
 				return s
 			fi
 		od
-		error('Unexpected token: Expected one of ' & tostringx(varargs) & '. Instead saw "' & token[2] & '".')
+		error('Unexpected token: Expected one of ' & tostringx(varargs) & '. Instead saw "' & token.value & '".')
 	end
 
 	#-- returns weather or not eat(...) will fail
 	proc parser@@edible(expected_strings) is
 		local token := bottom(self.tokens)
 		for s in expected_strings do
-			if isstring(s) and token[2] == s then
+			if isstring(s) and token.value == s then
 				return true, s
 			fi
 		od
-		return false, token[2]
+		return false, token.value
 	end
 
 	proc parser@@assert_edible(_, ?) is
@@ -85,12 +86,12 @@ new_parser := proc(in_file, out_file, indent_str) is
 	end
 
 	#-- if the current token is of the provided type, pop it and return it, otherwise throw an error
-	proc parser@@eat_terminal(token_type) is
+	proc parser@@eat_terminal(token_kind) is
 		local token := bottom(self.tokens)
-		if token[1] = token_type then
-			return self@@eat(token[2])
+		if token.kind = token_kind then
+			return self@@eat(token.value)
 		fi
-		error('Unexpected token: Expected a token of type "' & token_type & '". Instead saw the ' & token[1] & ' "' & token[2] & '".')
+		error('Unexpected token: Expected a token of type "' & token_kind & '". Instead saw the ' & token.kind & ' "' & token.value & '".')
 	end
 
 
@@ -124,7 +125,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	#-- opens an xml tag and stored its name on a stack
 	proc parser@@open_tag(tag_name) is
-		self@@out('<' & tag_name & '>')
+		self@@xml_out('<' & tag_name & '>')
 		insert tag_name into self.tag_stack
 		inc self.indentation
 	end
@@ -135,7 +136,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			error('Expected to close <' & tag_name & '> but <' & top(self.tag_stack) & '> was left open')
 		fi
 		dec self.indentation
-		self@@out('</' & pop(self.tag_stack) & '>')
+		self@@xml_out('</' & pop(self.tag_stack) & '>')
 	end
 
 	#-- 'class' <class_name> '{' <class_var>* <subroutine>* '}'
@@ -199,7 +200,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 				return token
 			catch
 				token := bottom(self.tokens)
-				error('Unexpected token: Expected a type (int, char, boolean, or a class name). Saw "' & token[2] & '".')
+				error('Unexpected token: Expected a type (int, char, boolean, or a class name). Saw "' & token.value & '".')
 			yrt
 		yrt
 	end
@@ -218,6 +219,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		if subroutine_type in {'constructor', 'method'} then
 			self.subroutine_symbol_table@@add_symbol(self.class_name, 'this', 'argument')
 		fi
+		self@@construct_object()
 		self@@compile_type(true)
 		self@@compile_subroutine_name()
 		self@@eat('(')
@@ -226,6 +228,11 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@compile_subroutine_body()
 		self@@close_tag('subroutineDec')
 		print(self.subroutine_symbol_table)
+	end
+
+	#-- generate vm code to allocate the amount of memory needed for this class
+	proc parser@@construct_object(_) is
+
 	end
 
 	#-- any identifier is a valid subroutine name
@@ -303,7 +310,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			yrt
 		od
 		local token := bottom(self.tokens)
-		error('Unexpected token: Expected the start of a statement, instead saw "' & token[2] & '".')
+		error('Unexpected token: Expected the start of a statement, instead saw "' & token.value & '".')
 	end
 
 	#-- 'let' <var_name> <index>? '=' <expr> ';'
@@ -398,8 +405,8 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 	proc parser@@assert_term_beginning(_) is
 		local token := bottom(self.tokens)
-		if not (token[1] in {'integerConstant', 'stringConstant', 'identifier'} or token[2] in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
-			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & token[2] & '".')
+		if not (token.kind in {'integerConstant', 'stringConstant', 'identifier'} or token.value in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
+			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & token.value & '".')
 		fi
 	end
 
@@ -422,16 +429,16 @@ new_parser := proc(in_file, out_file, indent_str) is
 
 		#-- if the previous loop hasnt returned, the next token is an identifier, which is ambiguous so we must look ahead
 		local curr_token := bottom(self.tokens)
-		if curr_token[1] <> 'identifier' then
+		if curr_token.kind <> 'identifier' then
 			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & curr_token[2] & '".')
 		fi
 		pop bottom from self.tokens
 		local next_token := bottom(self.tokens)
-		if next_token[2] = '[' then
+		if next_token.value = '[' then
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
 			self@@compile_subscript()
-		elif next_token[2] in {'.', '('} then
+		elif next_token.value in {'.', '('} then
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
 			self@@compile_call()

@@ -1,0 +1,3 @@
+new_token := proc(kind, value) is
+	return ['kind' ~ kind, 'value' ~ value]
+end
