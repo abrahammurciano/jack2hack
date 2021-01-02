@@ -15,8 +15,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			'argument' ~ 'argument',
 			'var' ~ 'local'
 		],
-		'class_name' ~ null,
-		'class_symbol_table' ~ new_symbol_table(),
+		'class' ~ new_class(),
 		'subroutine' ~ null
 	]
 
@@ -32,7 +31,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
 	proc parser@@print_token(t) is
-		self@@xml_out('<' & t[1] & '> ' & xml_encode(t[2]) & ' </' & t[1] & '>')
+		self@@xml_out('<' & t.kind & '> ' & xml_encode(t.value) & ' </' & t.kind & '>')
 	end
 
 	proc parser@@parse(_) is
@@ -133,7 +132,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@assert_edible('class')
 		self@@open_tag('class')
 		self@@eat('class')
-		self.class_name := self@@compile_class_name()
+		self.class.name := self@@compile_class_name()
 		self@@eat('{')
 		self@@zero_or_more(self.compile_class_var)
 		self@@zero_or_more(self.compile_subroutine)
@@ -156,7 +155,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		names := names union self@@zero_or_more(self.compile_another_var)
 		#-- add to class symbols table
 		for name in names do
-			self.class_symbol_table@@add_symbol(var_type, name, segment)
+			self.class.symbol_table@@add_symbol(var_type, name, segment)
 		od
 
 		self@@eat(';')
@@ -209,7 +208,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		local name := self@@compile_subroutine_name()
 
 		#-- new_subroutine will add 'this' to symbol table if necessary
-		self.subroutine := new_subroutine(subroutine_type, return_type, name, self.class_name)
+		self.subroutine := new_subroutine(subroutine_type, return_type, name, self.class)
 
 		self@@eat('(')
 		self@@compile_param_list()
@@ -254,8 +253,8 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@eat('{')
 		self@@zero_or_more(self.compile_local_var)
 
-		#-- at this point we know enough about the subrouine to print its first part
-		self@@vm_out(self.subrouine@@vm_intro())
+		#-- at this point we know enough about the subroutine to print its first part
+		self@@vm_out(self.subroutine@@vm_intro())
 
 		self@@compile_statements()
 		self@@eat('}')
@@ -419,7 +418,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		#-- if the previous loop hasnt returned, the next token is an identifier, which is ambiguous so we must look ahead
 		local curr_token := bottom(self.tokens)
 		if curr_token.kind <> 'identifier' then
-			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & curr_token[2] & '".')
+			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & curr_token.value & '".')
 		fi
 		pop bottom from self.tokens
 		local next_token := bottom(self.tokens)

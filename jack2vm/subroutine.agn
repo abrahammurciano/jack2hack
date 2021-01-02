@@ -1,33 +1,39 @@
 new_subroutine := proc(kind, return_type, name, class) is
 
-	subroutine := [
+	local subroutine := [
 		'kind' ~ kind,
 		'return_type' ~ return_type,
-		'name' ~ null,
+		'name' ~ name,
+		'class' ~ class,
 		'symbol_table' ~ new_symbol_table()
 	]
 
 	if kind = 'method' then
-		subroutine.symbol_table@@add_symbol(class, 'this', 'argument')
+		subroutine.symbol_table@@add_symbol(class.name, 'this', 'argument')
 	fi
 
 	proc subroutine@@n_locals(_) is
-		return self.symbol_table.counters['this'] or 0
+		return self.symbol_table.counters['local'] or 0
 	end
 
-	proc subrouine@@vm_intro(_) is
+	proc subroutine@@vm_intro(_) is
 		local vm := ''
 
-		vm &:= 'function ' & self.class_name & '.' & self.subroutine.name & self.subroutine.n_locals() & '\n'
+		vm &:= 'function ' & self.class.name & '.' & self.name & ' ' & self@@n_locals() & '\n'
 
-		if subroutine_type = 'constructor' then
-			vm &:= 'push constant ' & self@@n_locals() & '\n'
+		if self.kind = 'constructor' then
+			vm &:= 'push constant ' & self.class.n_fields() & '\n'
 			vm &:= 'call Memory.alloc 1\n'
+		elif self.kind = 'method' then
+			vm &:= 'push argument 0\n'
+		onsuccess
+			#-- if it's either a constructor or a method
+			vm &:= 'pop pointer 0\n'
 		fi
-
-		#-- TODO: complete
 
 		return vm
 	end
+
+	return subroutine
 
 end

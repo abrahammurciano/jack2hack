@@ -1,0 +1,15 @@
+new_class := proc() is
+
+	local class := [
+		'name' ~ null,
+		'symbol_table' ~ new_symbol_table()
+	]
+
+	proc class@@n_fields(_) is
+		#-- for some reason self is null specifically in this function, so must use class instead
+		return class.symbol_table.counters['this'] or 0
+	end
+
+	return class
+
+end

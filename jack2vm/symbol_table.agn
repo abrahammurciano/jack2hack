@@ -1,6 +1,6 @@
 new_symbol_table := proc() is
 
-	symbol_table := [
+	local symbol_table := [
 		'symbols' ~ [],
 		'counters' ~ []
 	]
@@ -9,7 +9,7 @@ new_symbol_table := proc() is
 		if self.counters[segment] = null then
 			self.counters[segment] := 0
 		fi
-		insert add_symbol(var_type, name, segment, self.counters[segment]) into self.symbols
+		insert new_symbol(var_type, name, segment, self.counters[segment]) into self.symbols
 		self.counters[segment] +:= 1
 	end
 

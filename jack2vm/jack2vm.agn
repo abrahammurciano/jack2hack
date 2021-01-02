@@ -4,11 +4,13 @@ jack2vm_dir := os.dirname(os.realpath(io.pcall(if os.iswindows() then 'where' el
 jack2vm_dir := if os.isdir(jack2vm_dir) then jack2vm_dir else '.' fi
 run(jack2vm_dir & '/../lib/file_base_name')
 run(jack2vm_dir & '/parse_args')
-run(jack2vm_dir & '/tokeniser')
-run(jack2vm_dir & '/parser')
 run(jack2vm_dir & '/symbol')
 run(jack2vm_dir & '/symbol_table')
+run(jack2vm_dir & '/class')
+run(jack2vm_dir & '/subroutine')
 run(jack2vm_dir & '/token')
+run(jack2vm_dir & '/tokeniser')
+run(jack2vm_dir & '/parser')
 
 main := proc() is
 	#-- get names of input and output files from command line args
