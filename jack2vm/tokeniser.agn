@@ -1,20 +1,19 @@
 run(jack2vm_dir & '/../lib/xml_encode')
 run(jack2vm_dir & '/../lib/escape_whitespace')
 
-new_tokeniser := proc(in_file, out_file) is
+new_tokeniser := proc(in_file) is
 	local tokeniser := [
 		keywords = {'class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this', 'let', 'do', 'if', 'else', 'while', 'return'},
 		symbols = {'{', '}', '(', ')', '[', ']', '.', ',', ';', '+', '-', '*', '/', '&', '|', '<', '>', '=', '~'},
 		fin = io.open(in_file, 'r'),
-		fout = io.open(out_file, 'w'),
 		curr_char,
-		next_char
+		next_char,
+		tokens = []
 	]
 
 	proc tokeniser@@tokenise(_) is
 		local token := ''
 		#-- open tokens tag
-		io.writeline(self.fout, '<tokens>')
 		self.curr_char := io.read(self.fin, 1)
 		self.next_char := io.read(self.fin, 1)
 		while self.curr_char <> null do
@@ -32,7 +31,7 @@ new_tokeniser := proc(in_file, out_file) is
 			elif self.curr_char in self.symbols then
 				token := self@@read_while(<< (c) -> c in self.symbols >>)
 				for sym in token do
-					self@@out('symbol', sym)
+					self@@add_token('symbol', sym)
 				od
 
 			#-- if char is the start of a string
@@ -41,21 +40,21 @@ new_tokeniser := proc(in_file, out_file) is
 				token := escape_whitespace(self@@read_while(<< (c) -> c <> '"' >>))
 				self@@discard(1) #-- '"'
 				#-- discard the first character of token which is an open quote
-				self@@out('stringConstant', token)
+				self@@add_token('stringConstant', token)
 
 			#-- if char is digit
 			elif strings.isnumber(self.curr_char) then
 				token := self@@read_while(<< (c) -> strings.isnumber(c) >>)
-				self@@out('integerConstant', token)
+				self@@add_token('integerConstant', token)
 
 			#-- if char is beginning of identifier or keyword (aka word)
 			elif strings.isalpha(self.curr_char) or self.curr_char = '_' then
 				token := self@@read_while(<< (c) -> strings.isalphanumeric(c) or c = '_' >>)
 				#--check to see if identifier is keyword
 				if token in self.keywords then
-					self@@out('keyword', token)
+					self@@add_token('keyword', token)
 				else
-					self@@out('identifier', token)
+					self@@add_token('identifier', token)
 				fi
 
 			#-- if its whitespace, skip
@@ -67,9 +66,8 @@ new_tokeniser := proc(in_file, out_file) is
 			fi
 		od
 		#-- close tokeniser
-		io.write(self.fout, '</tokens>')
-		io.close(self.fout)
 		io.close(self.fin)
+		return self.tokens
 	end
 
 	#-- returns a token formed of all the consecutive next characters for which predicate(self.curr_char, self.next_char) is true
@@ -91,8 +89,8 @@ new_tokeniser := proc(in_file, out_file) is
 		od
 	end
 
-	proc tokeniser@@out(tag, value) is
-		io.writeline(self.fout, '\t<' & tag & '> ' & xml_encode(value) & ' </' & tag & '>')
+	proc tokeniser@@add_token(kind, value) is
+		insert new_token(kind, value) into self.tokens
 	end
 
 	return tokeniser

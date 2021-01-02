@@ -2,15 +2,14 @@ import xml
 
 run(jack2vm_dir & '/../lib/xml_encode')
 
-new_parser := proc(tokens, in_file, out_file, indent_str) is
+new_parser := proc(tokens, vm_file, xml_file) is
 	parser := [
-		'fout_xml' ~ io.open(out_file, 'w'),
-		'fout_vm' ~ io.open(out_file, 'w'),
+		'fout_vm' ~ io.open(vm_file, 'w'),
+		'fout_xml' ~ io.open(xml_file, 'w'),
 		'tokens' ~ tokens,
-		'indent_str' ~ indent_str or '\t',
 		'indentation' ~ 0,
 		'tag_stack' ~ [],
-		'kind_to_segment' ~ [
+		'variable_kind_to_segment' ~ [
 			'static' ~ 'static',
 			'field' ~ 'this',
 			'argument' ~ 'argument',
@@ -18,27 +17,17 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 		],
 		'class_name' ~ null,
 		'class_symbol_table' ~ new_symbol_table(),
-		'subroutine_symbol_table' ~ null
+		'subroutine' ~ null
 	]
 
-	#-- returns an array of type:value pairs from the tokenised XML file
-	local file_contents := xml.decode(io.readfile(in_file))
-	if file_contents = null then
-		error('Error parsing XML file "' & in_file & '".')
-	fi
-
-	for i, tag in file_contents do
-		skip when not isnumber(i)
-		skip when not istable(tag)
-		local t_type := tag.label
-		local t_value := trim(tag[1])
-		parser.tokens[size(parser.tokens) + 1] := new_token(t_type, t_value)
-	od
-
-	#-- write some string in the out file
-	#-- indents it according to the indentation class fields
+	#-- write some string in the xml out file
 	proc parser@@xml_out(s) is
-		io.writeline(self.fout_xml, strings.repeat(self.indent_str, self.indentation) & s)
+		io.writeline(self.fout_xml, strings.repeat('\t', self.indentation) & s)
+	end
+
+	#-- write into the vm file
+	proc parser@@vm_out(s) is
+		io.writeline(self.fout_vm, s)
 	end
 
 	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
@@ -161,7 +150,7 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 	proc parser@@compile_class_var(_) is
 		self@@assert_edible('field', 'static')
 		self@@open_tag('classVarDec')
-		local segment := self.kind_to_segment[self@@eat('field', 'static')]
+		local segment := self.variable_kind_to_segment[self@@eat('field', 'static')]
 		local var_type := self@@compile_type()
 		local names := [self@@compile_var_name()]
 		names := names union self@@zero_or_more(self.compile_another_var)
@@ -214,30 +203,26 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 	proc parser@@compile_subroutine(_) is
 		self@@assert_edible('constructor', 'method', 'function')
 		self@@open_tag('subroutineDec')
+
 		local subroutine_type := self@@eat('constructor', 'method', 'function')
-		self.subroutine_symbol_table := new_symbol_table()
-		if subroutine_type in {'constructor', 'method'} then
-			self.subroutine_symbol_table@@add_symbol(self.class_name, 'this', 'argument')
-		fi
-		self@@construct_object()
-		self@@compile_type(true)
-		self@@compile_subroutine_name()
+		local return_type := self@@compile_type(true)
+		local name := self@@compile_subroutine_name()
+
+		#-- new_subroutine will add 'this' to symbol table if necessary
+		self.subroutine := new_subroutine(subroutine_type, return_type, name, self.class_name)
+
 		self@@eat('(')
 		self@@compile_param_list()
 		self@@eat(')')
+
 		self@@compile_subroutine_body()
+
 		self@@close_tag('subroutineDec')
-		print(self.subroutine_symbol_table)
-	end
-
-	#-- generate vm code to allocate the amount of memory needed for this class
-	proc parser@@construct_object(_) is
-
 	end
 
 	#-- any identifier is a valid subroutine name
 	proc parser@@compile_subroutine_name(_) is
-		self@@eat_terminal('identifier')
+		return self@@eat_terminal('identifier')
 	end
 
 	#-- [<param> (',' <param>)*]
@@ -259,7 +244,7 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 	proc parser@@compile_param(_) is
 		local var_type := self@@compile_type()
 		local name := self@@compile_var_name()
-		self.subroutine_symbol_table@@add_symbol(var_type, name, 'argument')
+		self.subroutine.symbol_table@@add_symbol(var_type, name, 'argument')
 	end
 
 	#-- '{' <local_var>* <statements> '}'
@@ -268,6 +253,10 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 		self@@open_tag('subroutineBody')
 		self@@eat('{')
 		self@@zero_or_more(self.compile_local_var)
+
+		#-- at this point we know enough about the subrouine to print its first part
+		self@@vm_out(self.subrouine@@vm_intro())
+
 		self@@compile_statements()
 		self@@eat('}')
 		self@@close_tag('subroutineBody')
@@ -283,7 +272,7 @@ new_parser := proc(tokens, in_file, out_file, indent_str) is
 		names := names union self@@zero_or_more(self.compile_another_var)
 		#-- add to class symbols table
 		for name in names do
-			self.subroutine_symbol_table@@add_symbol(var_type, name, 'local')
+			self.subroutine.symbol_table@@add_symbol(var_type, name, 'local')
 		od
 
 		self@@eat(';')
