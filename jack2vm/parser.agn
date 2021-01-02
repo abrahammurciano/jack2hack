@@ -15,6 +15,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 			'argument' ~ 'argument',
 			'var' ~ 'local'
 		],
+		'class_name' ~ null,
 		'class_symbol_table' ~ new_symbol_table(),
 		'subroutine_symbol_table' ~ null
 	]
@@ -142,7 +143,7 @@ new_parser := proc(in_file, out_file, indent_str) is
 		self@@assert_edible('class')
 		self@@open_tag('class')
 		self@@eat('class')
-		self@@compile_class_name()
+		self.class_name := self@@compile_class_name()
 		self@@eat('{')
 		self@@zero_or_more(self.compile_class_var)
 		self@@zero_or_more(self.compile_subroutine)
@@ -212,8 +213,11 @@ new_parser := proc(in_file, out_file, indent_str) is
 	proc parser@@compile_subroutine(_) is
 		self@@assert_edible('constructor', 'method', 'function')
 		self@@open_tag('subroutineDec')
-		self@@eat('constructor', 'method', 'function')
+		local subroutine_type := self@@eat('constructor', 'method', 'function')
 		self.subroutine_symbol_table := new_symbol_table()
+		if subroutine_type in {'constructor', 'method'} then
+			self.subroutine_symbol_table@@add_symbol(self.class_name, 'this', 'argument')
+		fi
 		self@@compile_type(true)
 		self@@compile_subroutine_name()
 		self@@eat('(')
