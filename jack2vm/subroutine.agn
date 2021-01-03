@@ -5,7 +5,8 @@ new_subroutine := proc(kind, return_type, name, class) is
 		'return_type' ~ return_type,
 		'name' ~ name,
 		'class' ~ class,
-		'symbol_table' ~ new_symbol_table()
+		'symbol_table' ~ new_symbol_table(),
+		'label_maker' ~ new_label_maker()
 	]
 
 	if kind = 'method' then
@@ -16,7 +17,7 @@ new_subroutine := proc(kind, return_type, name, class) is
 		return self.symbol_table.counters['local'] or 0
 	end
 
-	proc subroutine@@vm_intro(_) is
+	proc subroutine@@vm_declaration(_) is
 		local vm := ''
 
 		vm &:= 'function ' & self.class.name & '.' & self.name & ' ' & self@@n_locals() & '\n'

@@ -1,0 +1,19 @@
+new_label_maker := proc() is
+
+	local label_maker := [
+		counters = [],
+		prefix = 'LABEL'
+	]
+
+	proc label_maker@@make_label(prefix, sep) is
+		prefix := prefix or self.prefix
+		self.counters[prefix] := self.counters[prefix] or 0
+		sep := sep or '_'
+		local label := prefix & sep & self.counters[prefix]
+		self.counters[prefix] +:= 1
+		return label
+	end
+
+	return label_maker
+
+end

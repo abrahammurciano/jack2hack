@@ -9,8 +9,17 @@ new_symbol_table := proc() is
 		if self.counters[segment] = null then
 			self.counters[segment] := 0
 		fi
-		insert new_symbol(var_type, name, segment, self.counters[segment]) into self.symbols
-		self.counters[segment] +:= 1
+		local symbol := new_symbol(var_type, name, segment, self.counters[segment])
+		self.symbols[name] := symbol
+		inc self.counters[segment]
+	end
+
+	proc symbol_table@@var_to_vm(var) is
+		local symbol := self.symbols[var]
+		if symbol = null then
+			return null
+		fi
+		return symbol.segment & ' ' & symbol.offset
 	end
 
 	return symbol_table

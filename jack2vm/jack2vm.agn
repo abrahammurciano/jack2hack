@@ -7,6 +7,7 @@ run(jack2vm_dir & '/parse_args')
 run(jack2vm_dir & '/symbol')
 run(jack2vm_dir & '/symbol_table')
 run(jack2vm_dir & '/class')
+run(jack2vm_dir & '/label_maker')
 run(jack2vm_dir & '/subroutine')
 run(jack2vm_dir & '/token')
 run(jack2vm_dir & '/tokeniser')
@@ -27,7 +28,7 @@ main := proc() is
 		#-- parse the file
 		local base_name := file_base_name(file_name)
 		parsed_files[i] := out_dir & '/' & base_name & '.parsed.xml'
-		vm_files[i] := out_dir & '/' & base_name & '.vm'
+		vm_files[i] := out_dir & '/' & base_name & '.test.vm'
 		new_parser(tokens, vm_files[i], parsed_files[i])@@parse()
 	od
 end
