@@ -1,0 +1,21 @@
+new_vm_block := proc() is
+
+	vm_block := [
+		lines = []
+	]
+
+	vm_block@@add_line(line) is
+		insert line into self.lines
+	end
+
+	vm_block@@to_string(_) is
+		local str := ''
+		for line in lines do
+			str &:= line & '\n'
+		od
+		return strings.chomp(str, '\n')
+	end
+
+	return vm_block
+
+end

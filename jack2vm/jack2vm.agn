@@ -12,6 +12,7 @@ run(jack2vm_dir & '/subroutine')
 run(jack2vm_dir & '/token')
 run(jack2vm_dir & '/tokeniser')
 run(jack2vm_dir & '/parser')
+run(jack2vm_dir & '/vm_block')
 
 main := proc() is
 	#-- get names of input and output files from command line args
