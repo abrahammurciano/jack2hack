@@ -422,11 +422,19 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- 'return' <expr>? ';'
 	proc parser@@compile_return(_) is
-	#-- TODO: generate vm code
 		self@@assert_edible('return')
 		self@@open_tag('returnStatement')
 		self@@eat('return')
-		self@@zero_or_one(self.compile_expr)
+
+		#-- if there's an expression to return, put it on the stack, else push 0
+		local return_expr := self@@zero_or_one(self.compile_expr)
+		if return_expr <> null then
+			self@@vm_out(return_expr)
+		else
+			self@@vm_out('push constant 0')
+		fi
+		self@@vm_out('return')
+
 		self@@eat(';')
 		self@@close_tag('returnStatement')
 	end
