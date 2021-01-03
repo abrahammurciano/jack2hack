@@ -362,8 +362,8 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@eat('}')
 
 		#-- if there is an else, compile_else will give us a closing label. if there isn't we use the if_false_label
-		local endif_label := self@@zero_or_one(<< () -> self@@compile_else(if_false_label) >>)
-		self@@vm_out('label ' & (endif_label or if_false_label))
+		local end_if_label := self@@zero_or_one(<< () -> self@@compile_else(if_false_label) >>)
+		self@@vm_out('label ' & (end_if_label or if_false_label))
 
 		self@@close_tag('ifStatement')
 	end
@@ -372,26 +372,40 @@ new_parser := proc(tokens, vm_file, xml_file) is
 	proc parser@@compile_else(if_false_label) is
 		self@@eat('else')
 		self@@eat('{')
-		local endif_label := self.subroutine.label_maker@@make_label('END_IF')
-		self@@vm_out('goto ' & endif_label)
+		local end_if_label := self.subroutine.label_maker@@make_label('END_IF')
+		self@@vm_out('goto ' & end_if_label)
 		self@@vm_out('label ' & if_false_label)
 		self@@compile_statements()
 		self@@eat('}')
-		return endif_label
+		return end_if_label
 	end
 
 	#-- 'while' '(' <expr> ')' '{' <statements> '}'
 	proc parser@@compile_while(_) is
-	#-- TODO: generate vm code
 		self@@assert_edible('while')
 		self@@open_tag('whileStatement')
 		self@@eat('while')
 		self@@eat('(')
-		self@@compile_expr()
+
+		local condition := self@@compile_expr()
+
+		local while_label := self.subroutine.label_maker@@make_label('WHILE')
+		local condition_label := self.subroutine.label_maker@@make_label('CONDITION')
+
+		#-- generate vm code
+		self@@vm_out('goto ' & condition_label)
+		self@@vm_out('label ' & while_label)
+
 		self@@eat(')')
 		self@@eat('{')
 		self@@compile_statements()
 		self@@eat('}')
+
+		self@@vm_out('label ' & condition_label)
+		self@@vm_out(condition)
+		self@@vm_out('if-goto ' & while_label)
+
+
 		self@@close_tag('whileStatement')
 	end
 
@@ -400,7 +414,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@assert_edible('do')
 		self@@open_tag('doStatement')
 		self@@eat('do')
-		self@@compile_call()
+		self@@vm_out(self@@compile_call())
 		self@@vm_out('pop temp 0')
 		self@@eat(';')
 		self@@close_tag('doStatement')
@@ -519,7 +533,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 	#-- equivalent to
 	#-- <identifier> ('.' <identifier>)? '(' <expr_list> ')'
 	proc parser@@compile_call(_) is
-		#-- TODO: generate vm code
 		self@@eat_terminal('identifier')
 		try
 			self@@eat('.')
@@ -532,6 +545,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@eat('(')
 		self@@zero_or_one(self.compile_expr_list)
 		self@@eat(')')
+		#-- TODO: return generated vm code as string
 	end
 
 	#-- (<expr> (',' <expr>)*)?
