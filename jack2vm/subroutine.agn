@@ -20,16 +20,16 @@ new_subroutine := proc(kind, return_type, name, class) is
 	proc subroutine@@vm_declaration(_) is
 		local vm := new_vm_block()
 
-		vm@@add_line('function ' & self.class.name & '.' & self.name & ' ' & self@@n_locals())
+		vm@@append('function ' & self.class.name & '.' & self.name & ' ' & self@@n_locals())
 
 		if self.kind = 'constructor' then
-			vm@@add_line('push constant ' & self.class.n_fields())
-			vm@@add_line('call Memory.alloc 1')
+			vm@@append('push constant ' & self.class.n_fields())
+			vm@@append('call Memory.alloc 1')
 		elif self.kind = 'method' then
-			vm@@add_line('push argument 0')
+			vm@@append('push argument 0')
 		onsuccess
 			#-- if it's either a constructor or a method
-			vm@@add_line('pop pointer 0')
+			vm@@append('pop pointer 0')
 		fi
 
 		return vm@@to_string()

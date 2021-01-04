@@ -15,6 +15,17 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			'argument' ~ 'argument',
 			'var' ~ 'local'
 		],
+		'op_to_vm_code' ~ [
+			'+' ~ 'add',
+			'-' ~ 'sub',
+			'*' ~ 'call Math.multiply 2',
+			'/' ~ 'call Math.divide 2',
+			'&' ~ 'and',
+			'|' ~ 'or',
+			'<' ~ 'lt',
+			'>' ~ 'gt',
+			'=' ~ 'eq'
+		],
 		'class' ~ new_class(),
 		'subroutine' ~ null
 	]
@@ -445,16 +456,23 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- <term> (<op> <term>)*
 	proc parser@@compile_expr(_) is
+		local vm := new_vm_block()
+
 		self@@assert_term_beginning()
 		self@@open_tag('expression')
-		self@@compile_term()
+		vm@@append(self@@compile_term())
 		local compile_more_terms := proc() is
-			self@@compile_op()
-			self@@compile_term()
+			local vm := new_vm_block()
+			vm@@append(self@@compile_op())
+			vm@@prepend(self@@compile_term())
+			return vm@@to_string()
 		end
-		self@@zero_or_more(compile_more_terms)
+		local more_terms_vm_code := self@@zero_or_more(compile_more_terms)
+		for extra_term in more_terms_vm_code do
+			vm@@append(extra_term)
+		od
 		self@@close_tag('expression')
-		#-- TODO: return string of vm code to push expr onto stack
+		return vm@@to_string()
 	end
 
 	proc parser@@assert_term_beginning(_) is
@@ -465,6 +483,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 	end
 
 	proc parser@@compile_term(_) is
+		#-- TODO: return string which push term onto stack
 		self@@assert_term_beginning()
 		self@@open_tag('term')
 
@@ -568,7 +587,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		local var_location := self@@var_to_vm(subroutine_context)
 		if var_location <> null then
 			n_args++
-			vm@@add_line('push ' & var_location)
+			vm@@append('push ' & var_location)
 			subroutine_context := self@@var_type(subroutine_context)
 		fi
 
@@ -578,12 +597,12 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		local args_vm_code := self@@zero_or_one(self.compile_expr_list)
 		n_args +:= size(args_vm_code)
 		for arg_vm_code in args_vm_code do
-			vm@@add_line(arg_vm_code)
+			vm@@append(arg_vm_code)
 		od
 
 		self@@eat(')')
 
-		vm@@add_line('call ' & subroutine_context & '.' & subroutine_name & ' ' & n_args)
+		vm@@append('call ' & subroutine_context & '.' & subroutine_name & ' ' & n_args)
 
 		return vm@@to_string()
 	end
@@ -606,7 +625,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
 	proc parser@@compile_op(_) is
-		local temp := self@@eat('+', '-', '*', '/', ' ', '&', '|', '<', '>', '=')
+		return self.op_to_vm_code[self@@eat('+', '-', '*', '/', '&', '|', '<', '>', '=')]
 	end
 
 	return parser
