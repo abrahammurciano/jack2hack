@@ -203,6 +203,10 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		return self.subroutine.symbol_table@@var_to_vm(var) or self.class.symbol_table@@var_to_vm(var)
 	end
 
+	proc parser@@var_type(var) is
+		return self.subroutine.symbol_table@@var_type(var) or self.class.symbol_table@@var_type(var)
+	end
+
 	#-- {'constructor' | 'method' | 'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
 	proc parser@@compile_subroutine(_) is
 		self@@assert_edible('constructor', 'method', 'function')
@@ -541,19 +545,47 @@ new_parser := proc(tokens, vm_file, xml_file) is
 	#-- equivalent to
 	#-- <identifier> ('.' <identifier>)? '(' <expr_list> ')'
 	proc parser@@compile_call(_) is
-		self@@eat_terminal('identifier')
-		try
+		local vm := new_vm_block()
+		local n_args := 0
+
+		local subroutine_context := self@@eat_terminal('identifier')
+		local compile_second_identifier := proc() is
 			self@@eat('.')
-			self@@eat_terminal('identifier')
-		catch msg then
-			if not strings.isabbrev(msg, 'Unexpected token:', true) then
-				error(msg)
+			return self@@eat_terminal('identifier')
+		end
+		local subroutine_name := self@@zero_or_one(compile_second_identifier)
+
+		#-- if only one identifier, convert 'foo(...)' to 'this.foo(...)'
+		if subroutine_name = null then
+			subroutine_name := subroutine_context
+			if self.subroutine.kind = 'function' then
+				error('Subroutine ' & self.class.name & '.' & subroutine_name & ' called as a method from within a function')
 			fi
-		yrt
+			subroutine_context := 'this'
+		fi
+
+		#-- if first identifier is an object (not a class) then push the object as the this parameter and change context to the object's type
+		local var_location := self@@var_to_vm(subroutine_context)
+		if var_location <> null then
+			n_args++
+			vm@@add_line('push ' & var_location)
+			subroutine_context := self@@var_type(subroutine_context)
+		fi
+
 		self@@eat('(')
-		self@@zero_or_one(self.compile_expr_list)
+
+		#-- push each argument onto the stack
+		local args_vm_code := self@@zero_or_one(self.compile_expr_list)
+		n_args +:= size(args_vm_code)
+		for arg_vm_code in args_vm_code do
+			vm@@add_line(arg_vm_code)
+		od
+
 		self@@eat(')')
-		#-- TODO: return generated vm code as string
+
+		vm@@add_line('call ' & subroutine_context & '.' & subroutine_name & ' ' & n_args)
+
+		return vm@@to_string()
 	end
 
 	#-- (<expr> (',' <expr>)*)?
@@ -563,12 +595,13 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			self@@compile_expr()
 			local helper2 := proc() is
 				self@@eat(',')
-				self@@compile_expr()
+				return self@@compile_expr() #-- a string of vm code
 			end
-			self@@zero_or_more(helper2)
+			return self@@zero_or_more(helper2) #-- an array of strings of vm code
 		end
-		self@@zero_or_one(helper1)
+		local expressions := self@@zero_or_one(helper1)
 		self@@close_tag('expressionList')
+		return expressions or [] #-- an array of strings (one per expression)
 	end
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='

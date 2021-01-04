@@ -14,12 +14,21 @@ new_symbol_table := proc() is
 		inc self.counters[segment]
 	end
 
-	proc symbol_table@@var_to_vm(var) is
+	proc symbol_table@@get_symbol_data(var, func_on_symbol) is
 		local symbol := self.symbols[var]
 		if symbol = null then
 			return null
 		fi
-		return symbol.segment & ' ' & symbol.offset
+		return func_on_symbol(symbol)
+	end
+
+
+	proc symbol_table@@var_to_vm(var) is
+		return self@@get_symbol_data(var, << (symbol) -> symbol.segment & ' ' & symbol.offset >>)
+	end
+
+	proc symbol_table@@var_type(var) is
+		return self@@get_symbol_data(var, << (symbol) -> symbol.var_type >>)
 	end
 
 	return symbol_table

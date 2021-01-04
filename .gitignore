@@ -4,3 +4,4 @@ playground.agn
 *.asm
 *.parsed.xml
 *.tokenised.xml
+/test/*

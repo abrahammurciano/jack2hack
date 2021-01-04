@@ -4,13 +4,13 @@ new_vm_block := proc() is
 		lines = []
 	]
 
-	vm_block@@add_line(line) is
+	proc vm_block@@add_line(line) is
 		insert line into self.lines
 	end
 
-	vm_block@@to_string(_) is
+	proc vm_block@@to_string(_) is
 		local str := ''
-		for line in lines do
+		for line in self.lines do
 			str &:= line & '\n'
 		od
 		return strings.chomp(str, '\n')
