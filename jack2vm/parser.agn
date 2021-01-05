@@ -483,16 +483,15 @@ new_parser := proc(tokens, vm_file, xml_file) is
 	end
 
 	proc parser@@compile_term(_) is
-		#-- TODO: return string which push term onto stack
 		self@@assert_term_beginning()
 		self@@open_tag('term')
 
 		#-- first try the unambiguous paths
 		for func in {self.compile_int, self.compile_str, self.compile_keyword_const, self.compile_parentheses, self.compile_unary_term} do
 			try
-				func(self)
+				local vm_code := func(self)
 				self@@close_tag('term')
-				return
+				return vm_code
 			catch msg then
 				if not strings.isabbrev(msg, 'Unexpected token:', true) then
 					error(msg)
@@ -508,39 +507,67 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		pop bottom from self.tokens
 		local next_token := bottom(self.tokens)
 		if next_token.value = '[' then
+			#-- foo[bar]
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@compile_subscript()
+			self@@close_tag('term')
+			return self@@compile_subscript()
 		elif next_token.value in {'.', '('} then
+			#-- foo.bar
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@compile_call()
+			self@@close_tag('term')
+			return self@@compile_call()
 		else
+			#-- foo
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@compile_var_name()
+			self@@close_tag('term')
+			return 'push ' & self@@var_to_vm(self@@compile_var_name())
 		fi
-
-		self@@close_tag('term')
 	end
 
 	#-- positive integer up to 32767
 	proc parser@@compile_int(_) is
-		self@@eat_terminal('integerConstant')
+		return 'push constant ' & self@@eat_terminal('integerConstant')
 	end
 
 	#-- double quoted sequence of unicode characters not including double quotes or newlines
 	proc parser@@compile_str(_) is
-		self@@eat_terminal('stringConstant')
+		local str := self@@eat_terminal('stringConstant')
+		local vm := new_vm_block()
+
+		vm@@append('push constant ' & size(str))
+		vm@@append('call String.new 1')
+
+		for c in str do
+			vm@@append('push constant ' & abs(c))
+			vm@@append('call String.appendChar 2')
+		od
+
+		return vm@@to_string()
 	end
 
 	#-- 'true' | 'false' | 'null' | 'this'
 	proc parser@@compile_keyword_const(_) is
-		self@@eat('true', 'false', 'null', 'this')
+		local keyword := self@@eat('true', 'false', 'null', 'this')
+		local vm := new_vm_block()
+
+		if keyword = 'this' then
+			vm@@append('push pointer 0')
+		else
+			vm@@append('push constant 0')
+		fi
+		if keyword = 'true' then
+			vm@@append('not')
+		fi
+
+		return vm@@to_string()
 	end
 
 	#-- '(' <expr> ')'
 	proc parser@@compile_parentheses(_) is
+		#-- TODO: return string which push expr onto stack
 		self@@eat('(')
 		self@@compile_expr()
 		self@@eat(')')
@@ -548,12 +575,14 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- ('-' | '~') <term>
 	proc parser@@compile_unary_term(_) is
+		#-- TODO: return string which push expr onto stack
 		self@@eat('~', '-')
 		self@@compile_term()
 	end
 
 	#-- <var_name> '[' <expr> ']'
 	proc parser@@compile_subscript(_) is
+		#-- TODO: return string which push array access onto stack
 		self@@eat_terminal('identifier')
 		self@@eat('[')
 		self@@compile_expr()
