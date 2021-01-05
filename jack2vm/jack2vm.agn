@@ -21,13 +21,12 @@ main := proc() is
 	local vm_files := []
 
 	for i, file_name in file_names do
-		print(file_name)
+		print('Compiling "' & file_name & '"...')
 		#-- tokenise the file
 		local tokens := new_tokeniser(file_name)@@tokenise()
 
 		#-- parse the file
-		local base_name := file_base_name(file_name)
-		vm_files[i] := out_dir & '/' & base_name & '.vm'
+		vm_files[i] := out_dir & '/' & file_base_name(file_name) & '.vm'
 		new_parser(tokens, vm_files[i])@@parse()
 	od
 end

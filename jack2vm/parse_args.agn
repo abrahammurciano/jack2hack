@@ -14,7 +14,7 @@ if not parse_args then
 		local path_out := os.realpath(args[2] or path_in)
 
 		if path_out = fail then
-			error('File or directory "' & args[2] or path_in & '" not found.')
+			error('File or directory "' & (args[2] or path_in) & '" not found.')
 		fi
 
 		if not os.isdir(path_in) then
