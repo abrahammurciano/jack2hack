@@ -1,21 +1,16 @@
 import xml
 
-run(jack2vm_dir & '/../lib/xml_encode')
-
-new_parser := proc(tokens, vm_file, xml_file) is
+new_parser := proc(tokens, vm_file) is
 	parser := [
 		'fout_vm' ~ io.open(vm_file, 'w'),
-		'fout_xml' ~ io.open(xml_file, 'w'),
 		'tokens' ~ tokens,
-		'indentation' ~ 0,
-		'tag_stack' ~ [],
 		'variable_kind_to_segment' ~ [
 			'static' ~ 'static',
 			'field' ~ 'this',
 			'argument' ~ 'argument',
 			'var' ~ 'local'
 		],
-		'op_to_vm_code' ~ [
+		'bin_op_to_vm_code' ~ [
 			'+' ~ 'add',
 			'-' ~ 'sub',
 			'*' ~ 'call Math.multiply 2',
@@ -26,23 +21,17 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			'>' ~ 'gt',
 			'=' ~ 'eq'
 		],
+		'unary_op_to_vm_code' ~ [
+			'-' ~ 'neg',
+			'~' ~ 'not'
+		],
 		'class' ~ new_class(),
 		'subroutine' ~ null
 	]
 
-	#-- write some string in the xml out file
-	proc parser@@xml_out(s) is
-		io.writeline(self.fout_xml, strings.repeat('\t', self.indentation) & s)
-	end
-
 	#-- write into the vm file
 	proc parser@@vm_out(s) is
 		io.writeline(self.fout_vm, s)
-	end
-
-	#-- if t was 'keyword':'class', would print <keyword> class </keyword>
-	proc parser@@print_token(t) is
-		self@@xml_out('<' & t.kind & '> ' & xml_encode(t.value) & ' </' & t.kind & '>')
 	end
 
 	proc parser@@parse(_) is
@@ -56,7 +45,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		local token := bottom(self.tokens)
 		for s in varargs do
 			if isstring(s) and token.value == s then
-				self@@print_token(token)
 				pop bottom from self.tokens
 				return s
 			fi
@@ -123,33 +111,14 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		yrt
 	end
 
-	#-- opens an xml tag and stored its name on a stack
-	proc parser@@open_tag(tag_name) is
-		self@@xml_out('<' & tag_name & '>')
-		insert tag_name into self.tag_stack
-		self.indentation++
-	end
-
-	#-- closes the xml tag on the top of the stack, and pops it
-	proc parser@@close_tag(tag_name) is
-		if tag_name <> null and tag_name <> top(self.tag_stack) then
-			error('Expected to close <' & tag_name & '> but <' & top(self.tag_stack) & '> was left open')
-		fi
-		self.indentation--
-		self@@xml_out('</' & pop(self.tag_stack) & '>')
-	end
-
 	#-- 'class' <class_name> '{' <class_var>* <subroutine>* '}'
 	proc parser@@compile_class(_) is
-		self@@assert_edible('class')
-		self@@open_tag('class')
 		self@@eat('class')
 		self.class.name := self@@compile_class_name()
 		self@@eat('{')
 		self@@zero_or_more(self.compile_class_var)
 		self@@zero_or_more(self.compile_subroutine)
 		self@@eat('}')
-		self@@close_tag('class')
 	end
 
 	#-- any identifier is a valid class name
@@ -159,8 +128,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- {'static' | 'field'} <type> <var_name> <another_var>* ';'
 	proc parser@@compile_class_var(_) is
-		self@@assert_edible('field', 'static')
-		self@@open_tag('classVarDec')
 		local segment := self.variable_kind_to_segment[self@@eat('field', 'static')]
 		local var_type := self@@compile_type()
 		local names := [self@@compile_var_name()]
@@ -171,7 +138,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		od
 
 		self@@eat(';')
-		self@@close_tag('classVarDec')
 	end
 
 	#-- ',' <var_name>
@@ -220,9 +186,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- {'constructor' | 'method' | 'function'} {'void'|<type>} <subroutine_name> '(' <param_list> ')' <subroutine_body>
 	proc parser@@compile_subroutine(_) is
-		self@@assert_edible('constructor', 'method', 'function')
-		self@@open_tag('subroutineDec')
-
 		local subroutine_type := self@@eat('constructor', 'method', 'function')
 		local return_type := self@@compile_type(true)
 		local name := self@@compile_subroutine_name()
@@ -235,8 +198,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@eat(')')
 
 		self@@compile_subroutine_body()
-
-		self@@close_tag('subroutineDec')
 	end
 
 	#-- any identifier is a valid subroutine name
@@ -246,7 +207,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- [<param> (',' <param>)*]
 	proc parser@@compile_param_list(_) is
-		self@@open_tag('parameterList')
 		local helper := proc() is
 			self@@compile_param()
 			local compile_more_params := proc() is
@@ -256,7 +216,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			self@@zero_or_more(compile_more_params)
 		end
 		self@@zero_or_one(helper)
-		self@@close_tag('parameterList')
 	end
 
 	#-- <type> <var_name>
@@ -268,8 +227,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- '{' <local_var>* <statements> '}'
 	proc parser@@compile_subroutine_body(_) is
-		self@@assert_edible('{')
-		self@@open_tag('subroutineBody')
 		self@@eat('{')
 		self@@zero_or_more(self.compile_local_var)
 
@@ -278,13 +235,10 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 		self@@compile_statements()
 		self@@eat('}')
-		self@@close_tag('subroutineBody')
 	end
 
 	#-- 'var' <type> <var_name> <another_var>* ';'
 	proc parser@@compile_local_var(_) is
-		self@@assert_edible('var')
-		self@@open_tag('varDec')
 		self@@eat('var')
 		local var_type := self@@compile_type()
 		local names := [self@@compile_var_name()]
@@ -295,14 +249,11 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		od
 
 		self@@eat(';')
-		self@@close_tag('varDec')
 	end
 
 	#-- <statement>*
 	proc parser@@compile_statements(_) is
-		self@@open_tag('statements')
 		self@@zero_or_more(self.compile_statement)
-		self@@close_tag('statements')
 	end
 
 	#-- {<let>|<if>|<while>|<do>|<return>}
@@ -323,8 +274,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- 'let' <var_name> <index>? '=' <expr> ';'
 	proc parser@@compile_let(_) is
-		self@@assert_edible('let')
-		self@@open_tag('letStatement')
 		self@@eat('let')
 		local name := self@@compile_var_name()
 		local vm_push_index := self@@zero_or_one(self.compile_index)
@@ -344,7 +293,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@vm_out('pop ' & lhs_var)
 
 		self@@eat(';')
-		self@@close_tag('letStatement')
 	end
 
 	#-- '[' <expr> ']'
@@ -357,8 +305,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- 'if' '(' <expr> ')' '{' <statements> '}' <else>?
 	proc parser@@compile_if(_) is
-		self@@assert_edible('if')
-		self@@open_tag('ifStatement')
 		self@@eat('if')
 		self@@eat('(')
 
@@ -379,8 +325,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		#-- if there is an else, compile_else will give us a closing label. if there isn't we use the if_false_label
 		local end_if_label := self@@zero_or_one(<< () -> self@@compile_else(if_false_label) >>)
 		self@@vm_out('label ' & (end_if_label or if_false_label))
-
-		self@@close_tag('ifStatement')
 	end
 
 	#-- 'else' '{' <statements> '}'
@@ -397,8 +341,6 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- 'while' '(' <expr> ')' '{' <statements> '}'
 	proc parser@@compile_while(_) is
-		self@@assert_edible('while')
-		self@@open_tag('whileStatement')
 		self@@eat('while')
 		self@@eat('(')
 
@@ -419,26 +361,18 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@vm_out('label ' & condition_label)
 		self@@vm_out(condition)
 		self@@vm_out('if-goto ' & while_label)
-
-
-		self@@close_tag('whileStatement')
 	end
 
 	#-- 'do' <call> ';'
 	proc parser@@compile_do(_) is
-		self@@assert_edible('do')
-		self@@open_tag('doStatement')
 		self@@eat('do')
 		self@@vm_out(self@@compile_call())
 		self@@vm_out('pop temp 0')
 		self@@eat(';')
-		self@@close_tag('doStatement')
 	end
 
 	#-- 'return' <expr>? ';'
 	proc parser@@compile_return(_) is
-		self@@assert_edible('return')
-		self@@open_tag('returnStatement')
 		self@@eat('return')
 
 		#-- if there's an expression to return, put it on the stack, else push 0
@@ -451,15 +385,12 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		self@@vm_out('return')
 
 		self@@eat(';')
-		self@@close_tag('returnStatement')
 	end
 
 	#-- <term> (<op> <term>)*
 	proc parser@@compile_expr(_) is
 		local vm := new_vm_block()
 
-		self@@assert_term_beginning()
-		self@@open_tag('expression')
 		vm@@append(self@@compile_term())
 		local compile_more_terms := proc() is
 			local vm := new_vm_block()
@@ -471,26 +402,15 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		for extra_term in more_terms_vm_code do
 			vm@@append(extra_term)
 		od
-		self@@close_tag('expression')
 		return vm@@to_string()
 	end
 
-	proc parser@@assert_term_beginning(_) is
-		local token := bottom(self.tokens)
-		if not (token.kind in {'integerConstant', 'stringConstant', 'identifier'} or token.value in {'true', 'false', 'null', 'this', '(', '-', '~'}) then
-			error('Unexpected token: Expected constant, identifier, unary operator, or opening parentheses. Instead saw "' & token.value & '".')
-		fi
-	end
-
 	proc parser@@compile_term(_) is
-		self@@assert_term_beginning()
-		self@@open_tag('term')
 
 		#-- first try the unambiguous paths
 		for func in {self.compile_int, self.compile_str, self.compile_keyword_const, self.compile_parentheses, self.compile_unary_term} do
 			try
 				local vm_code := func(self)
-				self@@close_tag('term')
 				return vm_code
 			catch msg then
 				if not strings.isabbrev(msg, 'Unexpected token:', true) then
@@ -510,19 +430,16 @@ new_parser := proc(tokens, vm_file, xml_file) is
 			#-- foo[bar]
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@close_tag('term')
 			return self@@compile_subscript()
 		elif next_token.value in {'.', '('} then
 			#-- foo.bar
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@close_tag('term')
 			return self@@compile_call()
 		else
 			#-- foo
 			#-- restore curr_token (index 1 is guaranteed to be empty)
 			self.tokens[1] := curr_token
-			self@@close_tag('term')
 			return 'push ' & self@@var_to_vm(self@@compile_var_name())
 		fi
 	end
@@ -567,26 +484,31 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- '(' <expr> ')'
 	proc parser@@compile_parentheses(_) is
-		#-- TODO: return string which push expr onto stack
 		self@@eat('(')
-		self@@compile_expr()
+		local vm_code := self@@compile_expr()
 		self@@eat(')')
+		return vm_code
 	end
 
 	#-- ('-' | '~') <term>
 	proc parser@@compile_unary_term(_) is
-		#-- TODO: return string which push expr onto stack
-		self@@eat('~', '-')
-		self@@compile_term()
+		local vm := new_vm_block()
+		vm@@append(self.unary_op_to_vm_code[self@@eat('~', '-')])
+		vm@@prepend(self@@compile_term())
+		return vm@@to_string()
 	end
 
 	#-- <var_name> '[' <expr> ']'
 	proc parser@@compile_subscript(_) is
-		#-- TODO: return string which push array access onto stack
-		self@@eat_terminal('identifier')
+		local vm := new_vm_block()
+		vm@@append('push ' & self@@var_to_vm(self@@eat_terminal('identifier')))
 		self@@eat('[')
-		self@@compile_expr()
+		vm@@append(self@@compile_expr())
+		vm@@append('add')
+		vm@@append('pop pointer 1')
+		vm@@append('push that 0')
 		self@@eat(']')
+		return vm@@to_string()
 	end
 
 	#-- ((<class_name> | <var_name>) '.')? <subroutine_name> '(' <expr_list>? ')'
@@ -597,6 +519,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 		local n_args := 0
 
 		local subroutine_context := self@@eat_terminal('identifier')
+
 		local compile_second_identifier := proc() is
 			self@@eat('.')
 			return self@@eat_terminal('identifier')
@@ -624,6 +547,7 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 		#-- push each argument onto the stack
 		local args_vm_code := self@@zero_or_one(self.compile_expr_list)
+
 		n_args +:= size(args_vm_code)
 		for arg_vm_code in args_vm_code do
 			vm@@append(arg_vm_code)
@@ -638,23 +562,20 @@ new_parser := proc(tokens, vm_file, xml_file) is
 
 	#-- (<expr> (',' <expr>)*)?
 	proc parser@@compile_expr_list(_) is
-		self@@open_tag('expressionList')
 		local helper1 := proc() is
-			self@@compile_expr()
+			local first_arg := [self@@compile_expr()]
 			local helper2 := proc() is
 				self@@eat(',')
 				return self@@compile_expr() #-- a string of vm code
 			end
-			return self@@zero_or_more(helper2) #-- an array of strings of vm code
+			return first_arg union self@@zero_or_more(helper2) #-- an array of strings of vm code
 		end
-		local expressions := self@@zero_or_one(helper1)
-		self@@close_tag('expressionList')
-		return expressions or [] #-- an array of strings (one per expression)
+		return self@@zero_or_one(helper1) or [] #-- an array of strings (one per expression)
 	end
 
 	#-- '+' | '-' | '*' | '/' | '&' | '|' | '<' | '>' | '='
 	proc parser@@compile_op(_) is
-		return self.op_to_vm_code[self@@eat('+', '-', '*', '/', '&', '|', '<', '>', '=')]
+		return self.bin_op_to_vm_code[self@@eat('+', '-', '*', '/', '&', '|', '<', '>', '=')]
 	end
 
 	return parser

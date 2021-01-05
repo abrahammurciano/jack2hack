@@ -118,7 +118,7 @@ class Grid {
 		return points;
 	}
 
-	// returns the number of empty squares in the graph
+	// returns the number of empty squares in the grid
 	method int empty_squares() {
 		var int i, j, count;
 		var Array grid_i;
@@ -176,7 +176,7 @@ class Grid {
 
 	// return the value of a new tile to insert. 9/10 times will be 2, 1/10 times will be 4
 	method int get_new_tile() {
-		if(Random.randRange(0, 9) = 4 ) {
+		if(Random.randRange(0, 9) = 4) {
 			return 4;
 		}
 		return 2;

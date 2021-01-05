@@ -9,8 +9,11 @@ new_subroutine := proc(kind, return_type, name, class) is
 		'label_maker' ~ new_label_maker()
 	]
 
-	if kind = 'method' then
-		subroutine.symbol_table@@add_symbol(class.name, 'this', 'argument')
+	if kind in {'method', 'constructor'} then
+		if kind = 'method' then
+			subroutine.symbol_table@@add_symbol(class.name, 'this', 'argument')
+		fi
+		subroutine.symbol_table@@add_symbol(class.name, 'this', 'pointer')
 	fi
 
 	proc subroutine@@n_locals(_) is

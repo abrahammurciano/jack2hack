@@ -1,6 +1,3 @@
-run(jack2vm_dir & '/../lib/xml_encode')
-run(jack2vm_dir & '/../lib/escape_whitespace')
-
 new_tokeniser := proc(in_file) is
 	local tokeniser := [
 		keywords = {'class', 'constructor', 'function', 'method', 'field', 'static', 'var', 'int', 'char', 'boolean', 'void', 'true', 'false', 'null', 'this', 'let', 'do', 'if', 'else', 'while', 'return'},
@@ -37,7 +34,7 @@ new_tokeniser := proc(in_file) is
 			#-- if char is the start of a string
 			elif self.curr_char = '"' then
 				self@@discard(1) #-- '"'
-				token := escape_whitespace(self@@read_while(<< (c) -> c <> '"' >>))
+				token := self@@read_while(<< (c) -> c <> '"' >>)
 				self@@discard(1) #-- '"'
 				#-- discard the first character of token which is an open quote
 				self@@add_token('stringConstant', token)

@@ -19,7 +19,6 @@ main := proc() is
 	local file_names, out_dir := parse_args()
 
 	local vm_files := []
-	local parsed_files := []
 
 	for i, file_name in file_names do
 		print(file_name)
@@ -28,9 +27,8 @@ main := proc() is
 
 		#-- parse the file
 		local base_name := file_base_name(file_name)
-		parsed_files[i] := out_dir & '/' & base_name & '.parsed.xml'
-		vm_files[i] := out_dir & '/' & base_name & '.test.vm'
-		new_parser(tokens, vm_files[i], parsed_files[i])@@parse()
+		vm_files[i] := out_dir & '/' & base_name & '.vm'
+		new_parser(tokens, vm_files[i])@@parse()
 	od
 end
 
