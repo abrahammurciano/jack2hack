@@ -23,6 +23,7 @@ class Game {
 			let direction = input_direction();
 			if (grid.can_shift(direction)) {
 				let points = points + grid.shift(direction);
+				let moves = moves + 1;
 				do print_state();
 				do grid.print();
 			}
